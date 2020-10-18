@@ -166,10 +166,11 @@ BEGIN
 END;
 GO
 
+
 CREATE PROCEDURE cargarAutomovil
 AS
 BEGIN
-    INSERT INTO Automovil(nroChasis, nroMotor, patente, fechaAlta, cantKM)
+	INSERT INTO Automovil(nroChasis, nroMotor, patente, fechaAlta, cantKM)
 	SELECT DISTINCT AUTO_NRO_CHASIS, AUTO_NRO_MOTOR, AUTO_PATENTE, AUTO_FECHA_ALTA, AUTO_CANT_KMS
 	FROM gd_esquema.Maestra
 	WHERE AUTO_PATENTE IS NOT NULL
@@ -185,6 +186,8 @@ BEGIN
 	WHERE AUTO_PARTE_CODIGO IS NOT NULL
 END;
 GO
+
+
 
 CREATE PROCEDURE cargarSucursal
 AS
@@ -252,16 +255,49 @@ GO
 CREATE PROCEDURE cargarProducto
 AS
 BEGIN
+	--Autos
+	DECLARE @AUTOS TABLE(codModelo INTEGER, nroChasis NVARCHAR(50), nroMotor NVARCHAR(50), patente NVARCHAR(50), fechaAlta DATETIME2(3),  cantKM DECIMAL(18,0), id INTEGER NOT NULL IDENTITY)
+	INSERT INTO @AUTOS
+	SELECT DISTINCT MODELO_CODIGO, AUTO_NRO_CHASIS, AUTO_NRO_MOTOR, AUTO_PATENTE, AUTO_FECHA_ALTA, AUTO_CANT_KMS
+	FROM gd_esquema.Maestra
+	WHERE AUTO_PATENTE IS NOT NULL
+
+	INSERT INTO Automovil(nroChasis, nroMotor, patente, fechaAlta, cantKM)
+	SELECT DISTINCT nroChasis, nroMotor, patente, fechaAlta, cantKM
+	FROM @AUTOS
+
+	INSERT INTO Producto(modelo, tipoProducto, automovil)
+	SELECT codModelo, 1, id FROM @AUTOS
+
+	--Autopartes
+	DECLARE @AUTOPARTES TABLE(codModelo INTEGER,codAutoparte INTEGER, descripcion NVARCHAR(255), fabricante NVARCHAR(255))
+	INSERT INTO @AUTOPARTES
+	SELECT DISTINCT MODELO_CODIGO ,AUTO_PARTE_CODIGO, AUTO_PARTE_DESCRIPCION, FABRICANTE_NOMBRE
+	FROM gd_esquema.Maestra
+	WHERE AUTO_PARTE_CODIGO IS NOT NULL
+
+	INSERT INTO Autoparte(codAutoparte, descripcion, fabricante)
+	SELECT DISTINCT codAutoparte, descripcion, fabricante
+	FROM @AUTOPARTES
+
+	INSERT INTO Producto(modelo, tipoProducto, autoparte)
+	SELECT codModelo, 2, codAutoparte FROM @AUTOPARTES
+	
+
+	/*
     INSERT INTO Producto(modelo, tipoProducto, autoparte)
-	SELECT DISTINCT MODELO_CODIGO, 1, AUTO_PARTE_CODIGO
+	SELECT DISTINCT MODELO_CODIGO, (SELECT CASE WHEN AUTO_PARTE_CODIGO IS NULL THEN 1 ELSE 2 END), AUTO_PARTE_CODIGO
 	FROM gd_esquema.Maestra
 	WHERE MODELO_CODIGO IS NOT NULL
+	*/
 END;
 GO
 
+drop procedure cargarProducto
+
 EXEC cargarCliente
-EXEC cargarAutomovil
-EXEC cargarAutoparte
+--EXEC cargarAutomovil
+--EXEC cargarAutoparte
 EXEC cargarSucursal
 EXEC cargarCaja
 EXEC cargarTransmision
@@ -281,4 +317,6 @@ SELECT * FROM TipoProducto
 SELECT * FROM Modelo
 SELECT * FROM Producto
 
-SELECT * FROM gd_esquema.Maestra
+SELECT * FROM gd_esquema.Maestra ORDER BY AUTO_PATENTE DESC
+
+SELECT distinct * FROM gd_esquema.Maestra WHERE AUTO_PARTE_CODIGO IS NOT NULL OR AUTO_PATENTE IS NOT NULL 

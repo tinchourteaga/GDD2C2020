@@ -55,7 +55,7 @@ CREATE TABLE TipoAuto (
 );
 
 CREATE TABLE TipoProducto (
-	idTipoProducto INTEGER NOT NULL IDENTITY PRIMARY KEY,
+	codTipoProducto NCHAR(4) NOT NULL PRIMARY KEY,
 	detalleTipoProd VARCHAR(15)
 );
 
@@ -77,7 +77,7 @@ CREATE TABLE Modelo (
 CREATE TABLE Producto (
 	idProducto INTEGER NOT NULL IDENTITY PRIMARY KEY,
 	modelo INTEGER NOT NULL FOREIGN KEY REFERENCES Modelo(codModelo),
-	tipoProducto INTEGER NOT NULL FOREIGN KEY REFERENCES TipoProducto(idTipoProducto),
+	tipoProducto NCHAR(4) NOT NULL FOREIGN KEY REFERENCES TipoProducto(codTipoProducto),
 	automovil INTEGER FOREIGN KEY REFERENCES Automovil(idAutomovil),
 	autoparte INTEGER FOREIGN KEY REFERENCES Autoparte(codAutoparte)
 );
@@ -94,11 +94,8 @@ CREATE TABLE Compra (
 	nroCompra INTEGER NOT NULL PRIMARY KEY,
 	cliente INTEGER NOT NULL FOREIGN KEY REFERENCES Cliente(idCliente),
 	sucursal INTEGER NOT NULL FOREIGN KEY REFERENCES Sucursal(idSucursal),
-	producto INTEGER NOT NULL FOREIGN KEY REFERENCES Producto(idProducto),
-	cantidadCompra INTEGER,
 	fecha DATETIME,
 	precioTotal DECIMAL(12,2),
-	CONSTRAINT cantCompra CHECK (cantidadCompra>=0),
 	CONSTRAINT precio CHECK (precioTotal>=0)
 );
 
@@ -112,22 +109,33 @@ CREATE TABLE FacturaVta (
 );
 
 CREATE TABLE ItemFactura (
-	nroItem INTEGER NOT NULL,
+	nroItem INTEGER,
 	nroFactura INTEGER NOT NULL FOREIGN KEY REFERENCES FacturaVta(nroFactura),
 	producto INTEGER NOT NULL FOREIGN KEY REFERENCES Producto(idProducto),
 	precioUnitario DECIMAL(12,2),
 	cantidadItemFactura INTEGER,
 	CONSTRAINT itemFact_pk_compuesta PRIMARY KEY (nroItem, nroFactura),
-	CONSTRAINT cantidad CHECK (cantidadItemFactura>=0),
-	CONSTRAINT precioUni CHECK (precioUnitario>=0)
+	CONSTRAINT cantidadFac CHECK (cantidadItemFactura>=0),
+	CONSTRAINT precioUniFac CHECK (precioUnitario>=0)
+);
+
+CREATE TABLE ItemCompra (
+	nroItem INTEGER,
+	nroCompra INTEGER NOT NULL FOREIGN KEY REFERENCES Compra(nroCompra),
+	producto INTEGER NOT NULL FOREIGN KEY REFERENCES Producto(idProducto),
+	precioUnitario DECIMAL(12,2),
+	cantidadItemCompra INTEGER,
+	CONSTRAINT itemComp_pk_compuesta PRIMARY KEY (nroItem, nroCompra),
+	CONSTRAINT cantidadCom CHECK (cantidadItemCompra>=0),
+	CONSTRAINT precioUniCom CHECK (precioUnitario>=0)
 );
 GO
 
 -- SELECT * FROM ItemFactura
 
 -- Borra toda la tabla
-
-/*DROP TABLE ItemFactura
+/*
+DROP TABLE ItemFactura
 DROP TABLE FacturaVta
 DROP TABLE Compra
 DROP TABLE Stock
@@ -140,7 +148,9 @@ DROP TABLE Caja
 DROP TABLE Sucursal
 DROP TABLE Autoparte
 DROP TABLE Automovil
-DROP TABLE Cliente*/
+DROP TABLE Cliente
+DROP TABLE ItemCompra
+*/
 
 -- Agregar una CONSTRAINT por fuera del CREATE TABLE:
 -- ALTER TABLE Stock
@@ -187,8 +197,6 @@ BEGIN
 END;
 GO
 
-
-
 CREATE PROCEDURE cargarSucursal
 AS
 BEGIN
@@ -232,10 +240,10 @@ GO
 CREATE PROCEDURE cargarTipoProducto
 AS
 BEGIN
-    INSERT INTO TipoProducto(detalleTipoProd)
-	VALUES('AUTOMOVIL')
-	INSERT INTO TipoProducto(detalleTipoProd)
-	VALUES('AUTOPARTE')
+    INSERT INTO TipoProducto (codTipoProducto, detalleTipoProd)
+	VALUES('1010','AUTOMOVIL')
+	INSERT INTO TipoProducto (codTipoProducto, detalleTipoProd)
+	VALUES('1020','AUTOPARTE')
 END;
 GO
 
@@ -252,52 +260,80 @@ BEGIN
 END;
 GO
 
+/*
+ DROP PROCEDURE cargarProducto
+ DROP PROCEDURE cargarItemCompra
+ DROP TRIGGER incrementarNroItemFac
+ DROP TRIGGER incrementarNroItemCompra
+ */
+
 CREATE PROCEDURE cargarProducto
 AS
 BEGIN
-	--Autos
-	DECLARE @AUTOS TABLE(codModelo INTEGER, nroChasis NVARCHAR(50), nroMotor NVARCHAR(50), patente NVARCHAR(50), fechaAlta DATETIME2(3),  cantKM DECIMAL(18,0), id INTEGER NOT NULL IDENTITY)
-	INSERT INTO @AUTOS
-	SELECT DISTINCT MODELO_CODIGO, AUTO_NRO_CHASIS, AUTO_NRO_MOTOR, AUTO_PATENTE, AUTO_FECHA_ALTA, AUTO_CANT_KMS
-	FROM gd_esquema.Maestra
-	WHERE AUTO_PATENTE IS NOT NULL
-
-	INSERT INTO Automovil(nroChasis, nroMotor, patente, fechaAlta, cantKM)
-	SELECT DISTINCT nroChasis, nroMotor, patente, fechaAlta, cantKM
-	FROM @AUTOS
-
-	INSERT INTO Producto(modelo, tipoProducto, automovil)
-	SELECT codModelo, 1, id FROM @AUTOS
-
-	--Autopartes
-	DECLARE @AUTOPARTES TABLE(codModelo INTEGER,codAutoparte INTEGER, descripcion NVARCHAR(255), fabricante NVARCHAR(255))
-	INSERT INTO @AUTOPARTES
-	SELECT DISTINCT MODELO_CODIGO ,AUTO_PARTE_CODIGO, AUTO_PARTE_DESCRIPCION, FABRICANTE_NOMBRE
+    INSERT INTO Producto(modelo, tipoProducto, autoparte)
+	SELECT DISTINCT MODELO_CODIGO, '1020', AUTO_PARTE_CODIGO
 	FROM gd_esquema.Maestra
 	WHERE AUTO_PARTE_CODIGO IS NOT NULL
 
-	INSERT INTO Autoparte(codAutoparte, descripcion, fabricante)
-	SELECT DISTINCT codAutoparte, descripcion, fabricante
-	FROM @AUTOPARTES
-
-	INSERT INTO Producto(modelo, tipoProducto, autoparte)
-	SELECT codModelo, 2, codAutoparte FROM @AUTOPARTES
-	
-
-	/*
-    INSERT INTO Producto(modelo, tipoProducto, autoparte)
-	SELECT DISTINCT MODELO_CODIGO, (SELECT CASE WHEN AUTO_PARTE_CODIGO IS NULL THEN 1 ELSE 2 END), AUTO_PARTE_CODIGO
+	INSERT INTO Producto(modelo, tipoProducto, automovil)
+	SELECT DISTINCT MODELO_CODIGO, '1010', (SELECT idAutomovil FROM Automovil 
+	WHERE nroChasis = AUTO_NRO_CHASIS AND nroMotor = AUTO_NRO_MOTOR AND patente = AUTO_PATENTE)
 	FROM gd_esquema.Maestra
-	WHERE MODELO_CODIGO IS NOT NULL
-	*/
+	WHERE AUTO_PARTE_CODIGO IS NULL
 END;
 GO
 
-drop procedure cargarProducto
+CREATE PROCEDURE cargarItemCompra
+AS
+BEGIN
+	INSERT INTO ItemCompra(nroCompra, precioUnitario, cantidadItemCompra, producto)
+	SELECT O.COMPRA_NRO, (O.COMPRA_PRECIO/O.COMPRA_CANT), O.COMPRA_CANT, P.idProducto
+	FROM gd_esquema.Maestra O JOIN Producto P
+	ON O.AUTO_PARTE_CODIGO = P.autoparte OR
+	O.AUTO_NRO_CHASIS+O.AUTO_NRO_MOTOR+O.AUTO_PATENTE = (SELECT nroChasis+nroMotor+patente FROM Automovil WHERE idAutomovil = P.idProducto)
+	WHERE O.COMPRA_NRO IS NOT NULL
+END;
+GO
+
+CREATE TRIGGER incrementarNroItemFac
+ON ItemFactura FOR INSERT AS
+BEGIN
+ DECLARE @nro_fac as INT
+ DECLARE @nro_item as INT
+
+ SET @nro_fac = (SELECT nroFactura FROM inserted)
+ IF EXISTS (SELECT nroFactura FROM ItemFactura WHERE nroFactura = @nro_fac)
+	SET @nro_item = (SELECT MAX(nroItem)+1 FROM ItemFactura WHERE nroFactura = @nro_fac);
+ ELSE
+	SET @nro_item = 1;
+
+ UPDATE ItemFactura
+ SET nroItem = @nro_item
+ WHERE nroFactura = @nro_fac AND nroItem IS NULL 
+END;
+GO
+
+CREATE TRIGGER incrementarNroItemCompra
+ON ItemCompra FOR INSERT AS
+BEGIN
+ DECLARE @nro_com as INT
+ DECLARE @nro_item as INT
+
+ SET @nro_com = (SELECT nroCompra FROM inserted)
+ IF EXISTS (SELECT nroCompra FROM ItemCompra WHERE nroCompra = @nro_com)
+	SET @nro_item = (SELECT MAX(nroItem)+1 FROM ItemCompra WHERE nroCompra = @nro_com);
+ ELSE
+	SET @nro_item = 1;
+
+ UPDATE ItemCompra
+ SET nroItem = @nro_item
+ WHERE nroCompra = @nro_com AND nroItem IS NULL 
+END;
+GO
 
 EXEC cargarCliente
---EXEC cargarAutomovil
---EXEC cargarAutoparte
+EXEC cargarAutomovil
+EXEC cargarAutoparte
 EXEC cargarSucursal
 EXEC cargarCaja
 EXEC cargarTransmision
@@ -305,6 +341,7 @@ EXEC cargarTipoAuto
 EXEC cargarTipoProducto
 EXEC cargarModelo
 EXEC cargarProducto
+EXEC cargarItemCompra
 
 SELECT * FROM Cliente
 SELECT * FROM Automovil
@@ -316,7 +353,3 @@ SELECT * FROM TipoAuto
 SELECT * FROM TipoProducto
 SELECT * FROM Modelo
 SELECT * FROM Producto
-
-SELECT * FROM gd_esquema.Maestra ORDER BY AUTO_PATENTE DESC
-
-SELECT distinct * FROM gd_esquema.Maestra WHERE AUTO_PARTE_CODIGO IS NOT NULL OR AUTO_PATENTE IS NOT NULL 

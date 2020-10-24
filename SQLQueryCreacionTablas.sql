@@ -12,12 +12,12 @@ CREATE TABLE Cliente (
 );
 
 CREATE TABLE Automovil (
-	idAutomovil INTEGER NOT NULL IDENTITY PRIMARY KEY,
-	nroChasis NVARCHAR(50),
+	nroChasis NVARCHAR(50) NOT NULL,
+	patente NVARCHAR(50) NOT NULL,
 	nroMotor NVARCHAR(50),
-	patente NVARCHAR(50),
 	fechaAlta DATETIME2(3),
 	cantKM DECIMAL(18,0),
+	CONSTRAINT automovil_pk_compuesta PRIMARY KEY (nroChasis, patente),
 	CONSTRAINT cantidadKM CHECK (cantKM>=0)
 );
 
@@ -65,7 +65,6 @@ CREATE TABLE TipoProducto (
 
 CREATE TABLE Modelo (
 	codModelo INTEGER NOT NULL PRIMARY KEY,
-	-- No puse el IDENTITY porque dice "codModelo"
 	codTransmision INTEGER NOT NULL FOREIGN KEY REFERENCES Transmision(codTransmision),
 	codCaja INTEGER NOT NULL FOREIGN KEY REFERENCES Caja(codCaja),
 	codTipoAuto INTEGER NOT NULL FOREIGN KEY REFERENCES TipoAuto(codTipoAuto),
@@ -75,57 +74,48 @@ CREATE TABLE Modelo (
 );
 
 CREATE TABLE Producto (
-	idProducto INTEGER NOT NULL IDENTITY PRIMARY KEY,
+	codProducto NVARCHAR(100) NOT NULL PRIMARY KEY,
 	modelo INTEGER NOT NULL FOREIGN KEY REFERENCES Modelo(codModelo),
-	tipoProducto NCHAR(4) NOT NULL FOREIGN KEY REFERENCES TipoProducto(codTipoProducto),
-	automovil INTEGER FOREIGN KEY REFERENCES Automovil(idAutomovil),
-	autoparte INTEGER FOREIGN KEY REFERENCES Autoparte(codAutoparte)
+	tipoProducto NCHAR(4) NOT NULL FOREIGN KEY REFERENCES TipoProducto(codTipoProducto)
 );
 
 CREATE TABLE Stock (
-	producto INTEGER NOT NULL FOREIGN KEY REFERENCES Producto(idProducto),
+	producto NVARCHAR(100) NOT NULL FOREIGN KEY REFERENCES Producto(codProducto),
 	sucursal INTEGER NOT NULL FOREIGN KEY REFERENCES Sucursal(idSucursal),
 	cantidadStock INTEGER,
-	CONSTRAINT stock_pk_compuesta PRIMARY KEY (producto, sucursal),
-	CONSTRAINT cantidadStk CHECK (cantidadStock>=0)
+	CONSTRAINT stock_pk_compuesta PRIMARY KEY (producto, sucursal)
 );
 
 CREATE TABLE Compra (
-	nroCompra INTEGER NOT NULL PRIMARY KEY,
+	nroCompra DECIMAL(18,0) NOT NULL PRIMARY KEY,
 	cliente INTEGER NOT NULL FOREIGN KEY REFERENCES Cliente(idCliente),
 	sucursal INTEGER NOT NULL FOREIGN KEY REFERENCES Sucursal(idSucursal),
-	fecha DATETIME,
-	precioTotal DECIMAL(12,2),
-	CONSTRAINT precio CHECK (precioTotal>=0)
+	fecha DATETIME
 );
 
 CREATE TABLE FacturaVta (
-	nroFactura INTEGER NOT NULL PRIMARY KEY,
+	nroFactura DECIMAL(18,0) NOT NULL PRIMARY KEY,
 	sucursal INTEGER NOT NULL FOREIGN KEY REFERENCES Sucursal(idSucursal),
 	cliente INTEGER NOT NULL FOREIGN KEY REFERENCES Cliente(idCliente),
-	fecha DATETIME,
-	precioTotal DECIMAL(12,2),
-	CONSTRAINT precioFact CHECK (precioTotal>=0)
+	fecha DATETIME
 );
 
 CREATE TABLE ItemFactura (
-	nroItem INTEGER,
-	nroFactura INTEGER NOT NULL FOREIGN KEY REFERENCES FacturaVta(nroFactura),
-	producto INTEGER NOT NULL FOREIGN KEY REFERENCES Producto(idProducto),
+	nroFactura DECIMAL(18,0) NOT NULL FOREIGN KEY REFERENCES FacturaVta(nroFactura),
+	producto NVARCHAR(100) NOT NULL FOREIGN KEY REFERENCES Producto(codProducto),
 	precioUnitario DECIMAL(12,2),
 	cantidadItemFactura INTEGER,
-	CONSTRAINT itemFact_pk_compuesta PRIMARY KEY (nroItem, nroFactura),
+	CONSTRAINT itemFact_pk_compuesta PRIMARY KEY (nroFactura, producto),
 	CONSTRAINT cantidadFac CHECK (cantidadItemFactura>=0),
 	CONSTRAINT precioUniFac CHECK (precioUnitario>=0)
 );
 
 CREATE TABLE ItemCompra (
-	nroItem INTEGER,
-	nroCompra INTEGER NOT NULL FOREIGN KEY REFERENCES Compra(nroCompra),
-	producto INTEGER NOT NULL FOREIGN KEY REFERENCES Producto(idProducto),
+	nroCompra DECIMAL(18,0) NOT NULL FOREIGN KEY REFERENCES Compra(nroCompra),
+	producto NVARCHAR(100) NOT NULL FOREIGN KEY REFERENCES Producto(codProducto),
 	precioUnitario DECIMAL(12,2),
 	cantidadItemCompra INTEGER,
-	CONSTRAINT itemComp_pk_compuesta PRIMARY KEY (nroItem, nroCompra),
+	CONSTRAINT itemComp_pk_compuesta PRIMARY KEY (nroCompra, producto),
 	CONSTRAINT cantidadCom CHECK (cantidadItemCompra>=0),
 	CONSTRAINT precioUniCom CHECK (precioUnitario>=0)
 );
@@ -137,6 +127,7 @@ GO
 /*
 DROP TABLE ItemFactura
 DROP TABLE FacturaVta
+DROP TABLE ItemCompra
 DROP TABLE Compra
 DROP TABLE Stock
 DROP TABLE Producto
@@ -149,7 +140,6 @@ DROP TABLE Sucursal
 DROP TABLE Autoparte
 DROP TABLE Automovil
 DROP TABLE Cliente
-DROP TABLE ItemCompra
 */
 
 -- Agregar una CONSTRAINT por fuera del CREATE TABLE:
@@ -173,17 +163,21 @@ BEGIN
 	SELECT DISTINCT CLIENTE_NOMBRE, CLIENTE_APELLIDO, CLIENTE_DIRECCION, CLIENTE_DNI, CLIENTE_MAIL, CLIENTE_FECHA_NAC
 	FROM gd_esquema.Maestra
 	WHERE CLIENTE_DNI IS NOT NULL
+
+	INSERT INTO Cliente (nombre, apellido, direccion, dni, mail, fechaNac)
+	SELECT DISTINCT FAC_CLIENTE_NOMBRE, FAC_CLIENTE_APELLIDO, FAC_CLIENTE_DIRECCION, FAC_CLIENTE_DNI, FAC_CLIENTE_MAIL, FAC_CLIENTE_FECHA_NAC
+	FROM gd_esquema.Maestra
+	WHERE FAC_CLIENTE_DNI IS NOT NULL
 END;
 GO
-
 
 CREATE PROCEDURE cargarAutomovil
 AS
 BEGIN
-	INSERT INTO Automovil(nroChasis, nroMotor, patente, fechaAlta, cantKM)
-	SELECT DISTINCT AUTO_NRO_CHASIS, AUTO_NRO_MOTOR, AUTO_PATENTE, AUTO_FECHA_ALTA, AUTO_CANT_KMS
+	INSERT INTO Automovil(nroChasis, patente, nroMotor, fechaAlta, cantKM)
+	SELECT DISTINCT AUTO_NRO_CHASIS, AUTO_PATENTE, AUTO_NRO_MOTOR,  AUTO_FECHA_ALTA, AUTO_CANT_KMS
 	FROM gd_esquema.Maestra
-	WHERE AUTO_PATENTE IS NOT NULL
+	WHERE AUTO_PATENTE IS NOT NULL AND AUTO_NRO_CHASIS IS NOT NULL
 END;
 GO
 
@@ -262,24 +256,36 @@ GO
 
 /*
  DROP PROCEDURE cargarProducto
+ DROP PROCEDURE cargarCompra
+ DROP PROCEDURE cargarFactura
  DROP PROCEDURE cargarItemCompra
- DROP TRIGGER incrementarNroItemFac
- DROP TRIGGER incrementarNroItemCompra
+ DROP PROCEDURE cargarItemFactura
+ DROP PROCEDURE cargarStock
  */
 
 CREATE PROCEDURE cargarProducto
 AS
 BEGIN
-    INSERT INTO Producto(modelo, tipoProducto, autoparte)
-	SELECT DISTINCT MODELO_CODIGO, '1020', AUTO_PARTE_CODIGO
+    INSERT INTO Producto(codProducto, modelo, tipoProducto)
+	SELECT DISTINCT AUTO_PARTE_CODIGO, MODELO_CODIGO, '1020'
 	FROM gd_esquema.Maestra
 	WHERE AUTO_PARTE_CODIGO IS NOT NULL
 
-	INSERT INTO Producto(modelo, tipoProducto, automovil)
-	SELECT DISTINCT MODELO_CODIGO, '1010', (SELECT idAutomovil FROM Automovil 
-	WHERE nroChasis = AUTO_NRO_CHASIS AND nroMotor = AUTO_NRO_MOTOR AND patente = AUTO_PATENTE)
+	INSERT INTO Producto(codProducto, modelo, tipoProducto)
+	SELECT DISTINCT AUTO_NRO_CHASIS+AUTO_PATENTE, MODELO_CODIGO, '1010'
 	FROM gd_esquema.Maestra
 	WHERE AUTO_PARTE_CODIGO IS NULL
+END;
+GO
+
+CREATE PROCEDURE cargarCompra
+AS
+BEGIN
+	INSERT INTO Compra(nroCompra, cliente, sucursal, fecha)
+	SELECT COMPRA_NRO, (SELECT idCliente FROM Cliente WHERE dni = MIN(CLIENTE_DNI) AND fechaNac = MIN(CLIENTE_FECHA_NAC)), (SELECT idSucursal FROM Sucursal WHERE direccion = MIN(SUCURSAL_DIRECCION)), MIN(COMPRA_FECHA)
+	FROM gd_esquema.Maestra
+	WHERE FACTURA_NRO IS NULL AND COMPRA_NRO IS NOT NULL
+	GROUP BY COMPRA_NRO
 END;
 GO
 
@@ -287,47 +293,65 @@ CREATE PROCEDURE cargarItemCompra
 AS
 BEGIN
 	INSERT INTO ItemCompra(nroCompra, precioUnitario, cantidadItemCompra, producto)
-	SELECT O.COMPRA_NRO, (O.COMPRA_PRECIO/O.COMPRA_CANT), O.COMPRA_CANT, P.idProducto
-	FROM gd_esquema.Maestra O JOIN Producto P
-	ON O.AUTO_PARTE_CODIGO = P.autoparte OR
-	O.AUTO_NRO_CHASIS+O.AUTO_NRO_MOTOR+O.AUTO_PATENTE = (SELECT nroChasis+nroMotor+patente FROM Automovil WHERE idAutomovil = P.idProducto)
-	WHERE O.COMPRA_NRO IS NOT NULL
+	SELECT COMPRA_NRO, (SUM(COMPRA_PRECIO)/SUM(COMPRA_CANT)), SUM(COMPRA_CANT), AUTO_PARTE_CODIGO
+	FROM gd_esquema.Maestra
+	WHERE FACTURA_NRO IS NULL AND AUTO_PARTE_CODIGO IS NOT NULL AND COMPRA_NRO IS NOT NULL
+	GROUP BY COMPRA_NRO, AUTO_PARTE_CODIGO
+
+	INSERT INTO ItemCompra(nroCompra, precioUnitario, cantidadItemCompra, producto)
+	SELECT COMPRA_NRO, SUM(COMPRA_PRECIO), 1, AUTO_NRO_CHASIS+AUTO_PATENTE
+	FROM gd_esquema.Maestra
+	WHERE FACTURA_NRO IS NULL AND AUTO_PARTE_CODIGO IS NULL AND COMPRA_NRO IS NOT NULL
+	GROUP BY COMPRA_NRO, AUTO_NRO_CHASIS+AUTO_PATENTE
 END;
 GO
 
-CREATE TRIGGER incrementarNroItemFac
-ON ItemFactura FOR INSERT AS
+CREATE PROCEDURE cargarFactura
+AS
 BEGIN
- DECLARE @nro_fac as INT
- DECLARE @nro_item as INT
-
- SET @nro_fac = (SELECT nroFactura FROM inserted)
- IF EXISTS (SELECT nroFactura FROM ItemFactura WHERE nroFactura = @nro_fac)
-	SET @nro_item = (SELECT MAX(nroItem)+1 FROM ItemFactura WHERE nroFactura = @nro_fac);
- ELSE
-	SET @nro_item = 1;
-
- UPDATE ItemFactura
- SET nroItem = @nro_item
- WHERE nroFactura = @nro_fac AND nroItem IS NULL 
+	INSERT INTO FacturaVta(nroFactura, cliente, sucursal, fecha)
+	SELECT FACTURA_NRO, (SELECT idCliente FROM Cliente WHERE dni = MIN(FAC_CLIENTE_DNI) AND fechaNac = MIN(FAC_CLIENTE_FECHA_NAC)), (SELECT idSucursal FROM Sucursal WHERE direccion = MIN(FAC_SUCURSAL_DIRECCION)), MIN(FACTURA_FECHA)
+	FROM gd_esquema.Maestra
+	WHERE FACTURA_NRO IS NOT NULL
+	GROUP BY FACTURA_NRO
 END;
 GO
 
-CREATE TRIGGER incrementarNroItemCompra
-ON ItemCompra FOR INSERT AS
+CREATE PROCEDURE cargarItemFactura
+AS
 BEGIN
- DECLARE @nro_com as INT
- DECLARE @nro_item as INT
+	INSERT INTO ItemFactura(nroFactura, precioUnitario, cantidadItemFactura, producto)
+	SELECT FACTURA_NRO, (SUM(PRECIO_FACTURADO)/SUM(CANT_FACTURADA)), SUM(CANT_FACTURADA), AUTO_PARTE_CODIGO
+	FROM gd_esquema.Maestra
+	WHERE FACTURA_NRO IS NOT NULL AND AUTO_PARTE_CODIGO IS NOT NULL
+	GROUP BY FACTURA_NRO, AUTO_PARTE_CODIGO
 
- SET @nro_com = (SELECT nroCompra FROM inserted)
- IF EXISTS (SELECT nroCompra FROM ItemCompra WHERE nroCompra = @nro_com)
-	SET @nro_item = (SELECT MAX(nroItem)+1 FROM ItemCompra WHERE nroCompra = @nro_com);
- ELSE
-	SET @nro_item = 1;
+	INSERT INTO ItemFactura(nroFactura, precioUnitario, cantidadItemFactura, producto)
+	SELECT FACTURA_NRO, SUM(PRECIO_FACTURADO), 1, AUTO_NRO_CHASIS+AUTO_PATENTE
+	FROM gd_esquema.Maestra
+	WHERE FACTURA_NRO IS NOT NULL AND AUTO_PARTE_CODIGO IS NULL
+	GROUP BY FACTURA_NRO, AUTO_NRO_CHASIS+AUTO_PATENTE
+END;
+GO
 
- UPDATE ItemCompra
- SET nroItem = @nro_item
- WHERE nroCompra = @nro_com AND nroItem IS NULL 
+CREATE PROCEDURE cargarStock
+AS
+BEGIN
+	INSERT INTO Stock(producto, sucursal, cantidadStock)
+	SELECT C.producto, Com.sucursal, (SUM(C.cantidadItemCompra) - SUM(F.cantidadItemFactura))
+	FROM ItemCompra C JOIN ItemFactura F ON C.producto = F.producto JOIN Compra Com ON C.nroCompra = Com.nroCompra
+	WHERE LEN(C.producto)<5
+	GROUP BY C.producto, Com.sucursal
+
+	INSERT INTO Stock(producto, sucursal, cantidadStock)
+	SELECT C.producto, Com.sucursal, 
+	CASE
+		WHEN EXISTS (SELECT * FROM ItemFactura WHERE producto = C.producto) THEN 0
+		ELSE 1
+	END
+	FROM ItemCompra C JOIN Compra Com ON C.nroCompra = Com.nroCompra
+	WHERE LEN(C.producto)>5
+	GROUP BY C.producto, Com.sucursal
 END;
 GO
 
@@ -341,7 +365,11 @@ EXEC cargarTipoAuto
 EXEC cargarTipoProducto
 EXEC cargarModelo
 EXEC cargarProducto
+EXEC cargarCompra
 EXEC cargarItemCompra
+EXEC cargarFactura
+EXEC cargarItemFactura
+EXEC cargarStock
 
 SELECT * FROM Cliente
 SELECT * FROM Automovil
@@ -353,3 +381,8 @@ SELECT * FROM TipoAuto
 SELECT * FROM TipoProducto
 SELECT * FROM Modelo
 SELECT * FROM Producto
+SELECT * FROM Compra
+SELECT * FROM ItemCompra
+SELECT * FROM FacturaVta
+SELECT * FROM ItemFactura
+SELECT * FROM Stock ORDER BY cantidadStock

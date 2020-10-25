@@ -1,7 +1,15 @@
 USE [GD2C2020]
 GO
 
-CREATE TABLE Cliente (
+--CREACION DEL ESQUEMA
+IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name='LOS_TABLATUBBIES')
+BEGIN
+	EXEC('CREATE SCHEMA [LOS_TABLATUBBIES]')
+END
+GO
+
+--CREACION DE TABLAS
+CREATE TABLE [LOS_TABLATUBBIES].Cliente (
 	idCliente INTEGER NOT NULL IDENTITY PRIMARY KEY,
 	nombre NVARCHAR(255),
 	apellido NVARCHAR(255),
@@ -11,7 +19,7 @@ CREATE TABLE Cliente (
 	fechaNac DATETIME2(3)
 );
 
-CREATE TABLE Automovil (
+CREATE TABLE [LOS_TABLATUBBIES].Automovil (
 	nroChasis NVARCHAR(50) NOT NULL,
 	patente NVARCHAR(50) NOT NULL,
 	nroMotor NVARCHAR(50),
@@ -21,14 +29,13 @@ CREATE TABLE Automovil (
 	CONSTRAINT cantidadKM CHECK (cantKM>=0)
 );
 
-CREATE TABLE Autoparte (
+CREATE TABLE [LOS_TABLATUBBIES].Autoparte (
 	codAutoparte INTEGER NOT NULL PRIMARY KEY,
-	-- No puse el IDENTITY porque dice "codAutoparte"
 	descripcion NVARCHAR(255),
 	fabricante NVARCHAR(255)
 );
 
-CREATE TABLE Sucursal (
+CREATE TABLE [LOS_TABLATUBBIES].Sucursal (
 	idSucursal INTEGER NOT NULL IDENTITY PRIMARY KEY,
 	direccion NVARCHAR(255),
 	mail NVARCHAR(255),
@@ -36,25 +43,22 @@ CREATE TABLE Sucursal (
 	ciudad NVARCHAR(255)
 );
 
-CREATE TABLE Caja (
+CREATE TABLE [LOS_TABLATUBBIES].Caja (
 	codCaja INTEGER NOT NULL PRIMARY KEY,
-	-- No puse el IDENTITY porque dice "codCaja"
 	descCaja NVARCHAR(255)
 );
 
-CREATE TABLE Transmision (
+CREATE TABLE [LOS_TABLATUBBIES].Transmision (
 	codTransmision INTEGER NOT NULL PRIMARY KEY,
-	-- No puse el IDENTITY porque dice "codTransmision"
 	descTransmision NVARCHAR(255)
 );
 
-CREATE TABLE TipoAuto (
+CREATE TABLE [LOS_TABLATUBBIES].TipoAuto (
 	codTipoAuto INTEGER NOT NULL PRIMARY KEY,
-	-- No puse el IDENTITY porque dice "codTipoAuto"
 	descripcion NVARCHAR(255)
 );
 
-CREATE TABLE TipoProducto (
+CREATE TABLE [LOS_TABLATUBBIES].TipoProducto (
 	codTipoProducto NCHAR(4) NOT NULL PRIMARY KEY,
 	detalleTipoProd VARCHAR(15)
 );
@@ -63,46 +67,46 @@ CREATE TABLE TipoProducto (
 -----------------------Estas tablas tienen FKs-----------------------------
 ---------------------------------------------------------------------------
 
-CREATE TABLE Modelo (
+CREATE TABLE [LOS_TABLATUBBIES].Modelo (
 	codModelo INTEGER NOT NULL PRIMARY KEY,
-	codTransmision INTEGER NOT NULL FOREIGN KEY REFERENCES Transmision(codTransmision),
-	codCaja INTEGER NOT NULL FOREIGN KEY REFERENCES Caja(codCaja),
-	codTipoAuto INTEGER NOT NULL FOREIGN KEY REFERENCES TipoAuto(codTipoAuto),
+	codTransmision INTEGER NOT NULL FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].Transmision(codTransmision),
+	codCaja INTEGER NOT NULL FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].Caja(codCaja),
+	codTipoAuto INTEGER NOT NULL FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].TipoAuto(codTipoAuto),
 	nombre NVARCHAR(255),
 	potencia INTEGER,
 	codMotor INTEGER
 );
 
-CREATE TABLE Producto (
+CREATE TABLE [LOS_TABLATUBBIES].Producto (
 	codProducto NVARCHAR(100) NOT NULL PRIMARY KEY,
-	modelo INTEGER NOT NULL FOREIGN KEY REFERENCES Modelo(codModelo),
-	tipoProducto NCHAR(4) NOT NULL FOREIGN KEY REFERENCES TipoProducto(codTipoProducto)
+	modelo INTEGER NOT NULL FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].Modelo(codModelo),
+	tipoProducto NCHAR(4) NOT NULL FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].TipoProducto(codTipoProducto)
 );
 
-CREATE TABLE Stock (
-	producto NVARCHAR(100) NOT NULL FOREIGN KEY REFERENCES Producto(codProducto),
-	sucursal INTEGER NOT NULL FOREIGN KEY REFERENCES Sucursal(idSucursal),
+CREATE TABLE [LOS_TABLATUBBIES].Stock (
+	producto NVARCHAR(100) NOT NULL FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].Producto(codProducto),
+	sucursal INTEGER NOT NULL FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].Sucursal(idSucursal),
 	cantidadStock INTEGER,
 	CONSTRAINT stock_pk_compuesta PRIMARY KEY (producto, sucursal)
 );
 
-CREATE TABLE Compra (
+CREATE TABLE [LOS_TABLATUBBIES].Compra (
 	nroCompra DECIMAL(18,0) NOT NULL PRIMARY KEY,
-	cliente INTEGER NOT NULL FOREIGN KEY REFERENCES Cliente(idCliente),
-	sucursal INTEGER NOT NULL FOREIGN KEY REFERENCES Sucursal(idSucursal),
+	cliente INTEGER NOT NULL FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].Cliente(idCliente),
+	sucursal INTEGER NOT NULL FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].Sucursal(idSucursal),
 	fecha DATETIME
 );
 
-CREATE TABLE FacturaVta (
+CREATE TABLE [LOS_TABLATUBBIES].FacturaVta (
 	nroFactura DECIMAL(18,0) NOT NULL PRIMARY KEY,
-	sucursal INTEGER NOT NULL FOREIGN KEY REFERENCES Sucursal(idSucursal),
-	cliente INTEGER NOT NULL FOREIGN KEY REFERENCES Cliente(idCliente),
+	sucursal INTEGER NOT NULL FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].Sucursal(idSucursal),
+	cliente INTEGER NOT NULL FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].Cliente(idCliente),
 	fecha DATETIME
 );
 
-CREATE TABLE ItemFactura (
-	nroFactura DECIMAL(18,0) NOT NULL FOREIGN KEY REFERENCES FacturaVta(nroFactura),
-	producto NVARCHAR(100) NOT NULL FOREIGN KEY REFERENCES Producto(codProducto),
+CREATE TABLE [LOS_TABLATUBBIES].ItemFactura (
+	nroFactura DECIMAL(18,0) NOT NULL FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].FacturaVta(nroFactura),
+	producto NVARCHAR(100) NOT NULL FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].Producto(codProducto),
 	precioUnitario DECIMAL(12,2),
 	cantidadItemFactura INTEGER,
 	CONSTRAINT itemFact_pk_compuesta PRIMARY KEY (nroFactura, producto),
@@ -110,9 +114,9 @@ CREATE TABLE ItemFactura (
 	CONSTRAINT precioUniFac CHECK (precioUnitario>=0)
 );
 
-CREATE TABLE ItemCompra (
-	nroCompra DECIMAL(18,0) NOT NULL FOREIGN KEY REFERENCES Compra(nroCompra),
-	producto NVARCHAR(100) NOT NULL FOREIGN KEY REFERENCES Producto(codProducto),
+CREATE TABLE [LOS_TABLATUBBIES].ItemCompra (
+	nroCompra DECIMAL(18,0) NOT NULL FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].Compra(nroCompra),
+	producto NVARCHAR(100) NOT NULL FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].Producto(codProducto),
 	precioUnitario DECIMAL(12,2),
 	cantidadItemCompra INTEGER,
 	CONSTRAINT itemComp_pk_compuesta PRIMARY KEY (nroCompra, producto),
@@ -121,25 +125,23 @@ CREATE TABLE ItemCompra (
 );
 GO
 
--- SELECT * FROM ItemFactura
-
--- Borra toda la tabla
+-- Dropeo de tablas
 /*
-DROP TABLE ItemFactura
-DROP TABLE FacturaVta
-DROP TABLE ItemCompra
-DROP TABLE Compra
-DROP TABLE Stock
-DROP TABLE Producto
-DROP TABLE Modelo
-DROP TABLE TipoProducto
-DROP TABLE TipoAuto
-DROP TABLE Transmision
-DROP TABLE Caja
-DROP TABLE Sucursal
-DROP TABLE Autoparte
-DROP TABLE Automovil
-DROP TABLE Cliente
+DROP TABLE [LOS_TABLATUBBIES].ItemFactura
+DROP TABLE [LOS_TABLATUBBIES].FacturaVta
+DROP TABLE [LOS_TABLATUBBIES].ItemCompra
+DROP TABLE [LOS_TABLATUBBIES].Compra
+DROP TABLE [LOS_TABLATUBBIES].Stock
+DROP TABLE [LOS_TABLATUBBIES].Producto
+DROP TABLE [LOS_TABLATUBBIES].Modelo
+DROP TABLE [LOS_TABLATUBBIES].TipoProducto
+DROP TABLE [LOS_TABLATUBBIES].TipoAuto
+DROP TABLE [LOS_TABLATUBBIES].Transmision
+DROP TABLE [LOS_TABLATUBBIES].Caja
+DROP TABLE [LOS_TABLATUBBIES].Sucursal
+DROP TABLE [LOS_TABLATUBBIES].Autoparte
+DROP TABLE [LOS_TABLATUBBIES].Automovil
+DROP TABLE [LOS_TABLATUBBIES].Cliente
 */
 
 -- Agregar una CONSTRAINT por fuera del CREATE TABLE:
@@ -156,95 +158,95 @@ DROP TABLE Cliente
 -------------------------------Migracion-----------------------------------
 ---------------------------------------------------------------------------
 
-CREATE PROCEDURE cargarCliente
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarCliente
 AS
 BEGIN
-    INSERT INTO Cliente (nombre, apellido, direccion, dni, mail, fechaNac)
+    INSERT INTO [LOS_TABLATUBBIES].Cliente (nombre, apellido, direccion, dni, mail, fechaNac)
 	SELECT DISTINCT CLIENTE_NOMBRE, CLIENTE_APELLIDO, CLIENTE_DIRECCION, CLIENTE_DNI, CLIENTE_MAIL, CLIENTE_FECHA_NAC
 	FROM gd_esquema.Maestra
 	WHERE CLIENTE_DNI IS NOT NULL
 
-	INSERT INTO Cliente (nombre, apellido, direccion, dni, mail, fechaNac)
+	INSERT INTO [LOS_TABLATUBBIES].Cliente (nombre, apellido, direccion, dni, mail, fechaNac)
 	SELECT DISTINCT FAC_CLIENTE_NOMBRE, FAC_CLIENTE_APELLIDO, FAC_CLIENTE_DIRECCION, FAC_CLIENTE_DNI, FAC_CLIENTE_MAIL, FAC_CLIENTE_FECHA_NAC
 	FROM gd_esquema.Maestra
 	WHERE FAC_CLIENTE_DNI IS NOT NULL
 END;
 GO
 
-CREATE PROCEDURE cargarAutomovil
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarAutomovil
 AS
 BEGIN
-	INSERT INTO Automovil(nroChasis, patente, nroMotor, fechaAlta, cantKM)
+	INSERT INTO [LOS_TABLATUBBIES].Automovil(nroChasis, patente, nroMotor, fechaAlta, cantKM)
 	SELECT DISTINCT AUTO_NRO_CHASIS, AUTO_PATENTE, AUTO_NRO_MOTOR,  AUTO_FECHA_ALTA, AUTO_CANT_KMS
 	FROM gd_esquema.Maestra
 	WHERE AUTO_PATENTE IS NOT NULL AND AUTO_NRO_CHASIS IS NOT NULL
 END;
 GO
 
-CREATE PROCEDURE cargarAutoparte
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarAutoparte
 AS
 BEGIN
-    INSERT INTO Autoparte(codAutoparte, descripcion, fabricante)
+    INSERT INTO [LOS_TABLATUBBIES].Autoparte(codAutoparte, descripcion, fabricante)
 	SELECT DISTINCT AUTO_PARTE_CODIGO, AUTO_PARTE_DESCRIPCION, FABRICANTE_NOMBRE
 	FROM gd_esquema.Maestra
 	WHERE AUTO_PARTE_CODIGO IS NOT NULL
 END;
 GO
 
-CREATE PROCEDURE cargarSucursal
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarSucursal
 AS
 BEGIN
-    INSERT INTO Sucursal(direccion, mail, telefono, ciudad)
+    INSERT INTO [LOS_TABLATUBBIES].Sucursal(direccion, mail, telefono, ciudad)
 	SELECT DISTINCT SUCURSAL_DIRECCION, SUCURSAL_MAIL, SUCURSAL_TELEFONO, SUCURSAL_CIUDAD
 	FROM gd_esquema.Maestra
 	WHERE SUCURSAL_DIRECCION IS NOT NULL
 END;
 GO
 
-CREATE PROCEDURE cargarCaja
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarCaja
 AS
 BEGIN
-    INSERT INTO Caja(codCaja, descCaja)
+    INSERT INTO [LOS_TABLATUBBIES].Caja(codCaja, descCaja)
 	SELECT DISTINCT TIPO_CAJA_CODIGO, TIPO_CAJA_DESC
 	FROM gd_esquema.Maestra
 	WHERE TIPO_CAJA_CODIGO IS NOT NULL
 END;
 GO
 
-CREATE PROCEDURE cargarTransmision
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarTransmision
 AS
 BEGIN
-    INSERT INTO Transmision(codTransmision, descTransmision)
+    INSERT INTO [LOS_TABLATUBBIES].Transmision(codTransmision, descTransmision)
 	SELECT DISTINCT TIPO_TRANSMISION_CODIGO, TIPO_TRANSMISION_DESC
 	FROM gd_esquema.Maestra
 	WHERE TIPO_TRANSMISION_CODIGO IS NOT NULL
 END;
 GO
 
-CREATE PROCEDURE cargarTipoAuto
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarTipoAuto
 AS
 BEGIN
-    INSERT INTO TipoAuto(codTipoAuto, descripcion)
+    INSERT INTO [LOS_TABLATUBBIES].TipoAuto(codTipoAuto, descripcion)
 	SELECT DISTINCT TIPO_AUTO_CODIGO, TIPO_AUTO_DESC
 	FROM gd_esquema.Maestra
 	WHERE TIPO_AUTO_CODIGO IS NOT NULL
 END;
 GO
 
-CREATE PROCEDURE cargarTipoProducto
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarTipoProducto
 AS
 BEGIN
-    INSERT INTO TipoProducto (codTipoProducto, detalleTipoProd)
+    INSERT INTO [LOS_TABLATUBBIES].TipoProducto (codTipoProducto, detalleTipoProd)
 	VALUES('1010','AUTOMOVIL')
-	INSERT INTO TipoProducto (codTipoProducto, detalleTipoProd)
+	INSERT INTO [LOS_TABLATUBBIES].TipoProducto (codTipoProducto, detalleTipoProd)
 	VALUES('1020','AUTOPARTE')
 END;
 GO
 
-CREATE PROCEDURE cargarModelo
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarModelo
 AS
 BEGIN
-    INSERT INTO Modelo(codModelo, codTransmision, codCaja, codTipoAuto, nombre, potencia, codMotor)
+    INSERT INTO [LOS_TABLATUBBIES].Modelo(codModelo, codTransmision, codCaja, codTipoAuto, nombre, potencia, codMotor)
 	SELECT DISTINCT MODELO_CODIGO, TIPO_TRANSMISION_CODIGO, TIPO_CAJA_CODIGO, TIPO_AUTO_CODIGO, MODELO_NOMBRE, MODELO_POTENCIA, TIPO_MOTOR_CODIGO
 	FROM gd_esquema.Maestra
 	WHERE MODELO_CODIGO IS NOT NULL AND
@@ -254,34 +256,25 @@ BEGIN
 END;
 GO
 
-/*
- DROP PROCEDURE cargarProducto
- DROP PROCEDURE cargarCompra
- DROP PROCEDURE cargarFactura
- DROP PROCEDURE cargarItemCompra
- DROP PROCEDURE cargarItemFactura
- DROP PROCEDURE cargarStock
- */
-
-CREATE PROCEDURE cargarProducto
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarProducto
 AS
 BEGIN
-    INSERT INTO Producto(codProducto, modelo, tipoProducto)
+    INSERT INTO [LOS_TABLATUBBIES].Producto(codProducto, modelo, tipoProducto)
 	SELECT DISTINCT AUTO_PARTE_CODIGO, MODELO_CODIGO, '1020'
 	FROM gd_esquema.Maestra
 	WHERE AUTO_PARTE_CODIGO IS NOT NULL
 
-	INSERT INTO Producto(codProducto, modelo, tipoProducto)
+	INSERT INTO [LOS_TABLATUBBIES].Producto(codProducto, modelo, tipoProducto)
 	SELECT DISTINCT AUTO_NRO_CHASIS+AUTO_PATENTE, MODELO_CODIGO, '1010'
 	FROM gd_esquema.Maestra
 	WHERE AUTO_PARTE_CODIGO IS NULL
 END;
 GO
 
-CREATE PROCEDURE cargarCompra
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarCompra
 AS
 BEGIN
-	INSERT INTO Compra(nroCompra, cliente, sucursal, fecha)
+	INSERT INTO [LOS_TABLATUBBIES].Compra(nroCompra, cliente, sucursal, fecha)
 	SELECT COMPRA_NRO, (SELECT idCliente FROM Cliente WHERE dni = MIN(CLIENTE_DNI) AND fechaNac = MIN(CLIENTE_FECHA_NAC)), (SELECT idSucursal FROM Sucursal WHERE direccion = MIN(SUCURSAL_DIRECCION)), MIN(COMPRA_FECHA)
 	FROM gd_esquema.Maestra
 	WHERE FACTURA_NRO IS NULL AND COMPRA_NRO IS NOT NULL
@@ -289,16 +282,16 @@ BEGIN
 END;
 GO
 
-CREATE PROCEDURE cargarItemCompra
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarItemCompra
 AS
 BEGIN
-	INSERT INTO ItemCompra(nroCompra, precioUnitario, cantidadItemCompra, producto)
+	INSERT INTO [LOS_TABLATUBBIES].ItemCompra(nroCompra, precioUnitario, cantidadItemCompra, producto)
 	SELECT COMPRA_NRO, (SUM(COMPRA_PRECIO)/SUM(COMPRA_CANT)), SUM(COMPRA_CANT), AUTO_PARTE_CODIGO
 	FROM gd_esquema.Maestra
 	WHERE FACTURA_NRO IS NULL AND AUTO_PARTE_CODIGO IS NOT NULL AND COMPRA_NRO IS NOT NULL
 	GROUP BY COMPRA_NRO, AUTO_PARTE_CODIGO
 
-	INSERT INTO ItemCompra(nroCompra, precioUnitario, cantidadItemCompra, producto)
+	INSERT INTO [LOS_TABLATUBBIES].ItemCompra(nroCompra, precioUnitario, cantidadItemCompra, producto)
 	SELECT COMPRA_NRO, SUM(COMPRA_PRECIO), 1, AUTO_NRO_CHASIS+AUTO_PATENTE
 	FROM gd_esquema.Maestra
 	WHERE FACTURA_NRO IS NULL AND AUTO_PARTE_CODIGO IS NULL AND COMPRA_NRO IS NOT NULL
@@ -306,10 +299,10 @@ BEGIN
 END;
 GO
 
-CREATE PROCEDURE cargarFactura
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarFactura
 AS
 BEGIN
-	INSERT INTO FacturaVta(nroFactura, cliente, sucursal, fecha)
+	INSERT INTO [LOS_TABLATUBBIES].FacturaVta(nroFactura, cliente, sucursal, fecha)
 	SELECT FACTURA_NRO, (SELECT idCliente FROM Cliente WHERE dni = MIN(FAC_CLIENTE_DNI) AND fechaNac = MIN(FAC_CLIENTE_FECHA_NAC)), (SELECT idSucursal FROM Sucursal WHERE direccion = MIN(FAC_SUCURSAL_DIRECCION)), MIN(FACTURA_FECHA)
 	FROM gd_esquema.Maestra
 	WHERE FACTURA_NRO IS NOT NULL
@@ -317,16 +310,16 @@ BEGIN
 END;
 GO
 
-CREATE PROCEDURE cargarItemFactura
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarItemFactura
 AS
 BEGIN
-	INSERT INTO ItemFactura(nroFactura, precioUnitario, cantidadItemFactura, producto)
+	INSERT INTO [LOS_TABLATUBBIES].ItemFactura(nroFactura, precioUnitario, cantidadItemFactura, producto)
 	SELECT FACTURA_NRO, (SUM(PRECIO_FACTURADO)/SUM(CANT_FACTURADA)), SUM(CANT_FACTURADA), AUTO_PARTE_CODIGO
 	FROM gd_esquema.Maestra
 	WHERE FACTURA_NRO IS NOT NULL AND AUTO_PARTE_CODIGO IS NOT NULL
 	GROUP BY FACTURA_NRO, AUTO_PARTE_CODIGO
 
-	INSERT INTO ItemFactura(nroFactura, precioUnitario, cantidadItemFactura, producto)
+	INSERT INTO [LOS_TABLATUBBIES].ItemFactura(nroFactura, precioUnitario, cantidadItemFactura, producto)
 	SELECT FACTURA_NRO, SUM(PRECIO_FACTURADO), 1, AUTO_NRO_CHASIS+AUTO_PATENTE
 	FROM gd_esquema.Maestra
 	WHERE FACTURA_NRO IS NOT NULL AND AUTO_PARTE_CODIGO IS NULL
@@ -334,55 +327,74 @@ BEGIN
 END;
 GO
 
-CREATE PROCEDURE cargarStock
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarStock
 AS
 BEGIN
-	INSERT INTO Stock(producto, sucursal, cantidadStock)
+	INSERT INTO [LOS_TABLATUBBIES].Stock(producto, sucursal, cantidadStock)
 	SELECT C.producto, Com.sucursal, (SUM(C.cantidadItemCompra) - SUM(F.cantidadItemFactura))
-	FROM ItemCompra C JOIN ItemFactura F ON C.producto = F.producto JOIN Compra Com ON C.nroCompra = Com.nroCompra
+	FROM ItemCompra C JOIN [LOS_TABLATUBBIES].ItemFactura F ON C.producto = F.producto JOIN [LOS_TABLATUBBIES].Compra Com ON C.nroCompra = Com.nroCompra
 	WHERE LEN(C.producto)<5
 	GROUP BY C.producto, Com.sucursal
 
-	INSERT INTO Stock(producto, sucursal, cantidadStock)
+	INSERT INTO [LOS_TABLATUBBIES].Stock(producto, sucursal, cantidadStock)
 	SELECT C.producto, Com.sucursal, 
 	CASE
 		WHEN EXISTS (SELECT * FROM ItemFactura WHERE producto = C.producto) THEN 0
 		ELSE 1
 	END
-	FROM ItemCompra C JOIN Compra Com ON C.nroCompra = Com.nroCompra
+	FROM [LOS_TABLATUBBIES].ItemCompra C JOIN Compra Com ON C.nroCompra = Com.nroCompra
 	WHERE LEN(C.producto)>5
 	GROUP BY C.producto, Com.sucursal
 END;
 GO
 
-EXEC cargarCliente
-EXEC cargarAutomovil
-EXEC cargarAutoparte
-EXEC cargarSucursal
-EXEC cargarCaja
-EXEC cargarTransmision
-EXEC cargarTipoAuto
-EXEC cargarTipoProducto
-EXEC cargarModelo
-EXEC cargarProducto
-EXEC cargarCompra
-EXEC cargarItemCompra
-EXEC cargarFactura
-EXEC cargarItemFactura
-EXEC cargarStock
+EXEC [LOS_TABLATUBBIES].cargarCliente
+EXEC [LOS_TABLATUBBIES].cargarAutomovil
+EXEC [LOS_TABLATUBBIES].cargarAutoparte
+EXEC [LOS_TABLATUBBIES].cargarSucursal
+EXEC [LOS_TABLATUBBIES].cargarCaja
+EXEC [LOS_TABLATUBBIES].cargarTransmision
+EXEC [LOS_TABLATUBBIES].cargarTipoAuto
+EXEC [LOS_TABLATUBBIES].cargarTipoProducto
+EXEC [LOS_TABLATUBBIES].cargarModelo
+EXEC [LOS_TABLATUBBIES].cargarProducto
+EXEC [LOS_TABLATUBBIES].cargarCompra
+EXEC [LOS_TABLATUBBIES].cargarItemCompra
+EXEC [LOS_TABLATUBBIES].cargarFactura
+EXEC [LOS_TABLATUBBIES].cargarItemFactura
+EXEC [LOS_TABLATUBBIES].cargarStock
 
-SELECT * FROM Cliente
-SELECT * FROM Automovil
-SELECT * FROM Autoparte
-SELECT * FROM Sucursal
-SELECT * FROM Caja
-SELECT * FROM Transmision
-SELECT * FROM TipoAuto
-SELECT * FROM TipoProducto
-SELECT * FROM Modelo
-SELECT * FROM Producto
-SELECT * FROM Compra
-SELECT * FROM ItemCompra
-SELECT * FROM FacturaVta
-SELECT * FROM ItemFactura
-SELECT * FROM Stock ORDER BY cantidadStock
+-- Dropeo de stored procedures
+/*
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarCliente
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarAutomovil
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarAutoparte
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarSucursal
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarCaja
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarTransmision
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarTipoAuto
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarTipoProducto
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarModelo
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarProducto
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarCompra
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarItemCompra
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarFactura
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarItemFactura
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarStock
+*/
+
+SELECT * FROM [LOS_TABLATUBBIES].Cliente
+SELECT * FROM [LOS_TABLATUBBIES].Automovil
+SELECT * FROM [LOS_TABLATUBBIES].Autoparte
+SELECT * FROM [LOS_TABLATUBBIES].Sucursal
+SELECT * FROM [LOS_TABLATUBBIES].Caja
+SELECT * FROM [LOS_TABLATUBBIES].Transmision
+SELECT * FROM [LOS_TABLATUBBIES].TipoAuto
+SELECT * FROM [LOS_TABLATUBBIES].TipoProducto
+SELECT * FROM [LOS_TABLATUBBIES].Modelo
+SELECT * FROM [LOS_TABLATUBBIES].Producto
+SELECT * FROM [LOS_TABLATUBBIES].Compra
+SELECT * FROM [LOS_TABLATUBBIES].ItemCompra
+SELECT * FROM [LOS_TABLATUBBIES].FacturaVta
+SELECT * FROM [LOS_TABLATUBBIES].ItemFactura
+SELECT * FROM [LOS_TABLATUBBIES].Stock ORDER BY cantidadStock

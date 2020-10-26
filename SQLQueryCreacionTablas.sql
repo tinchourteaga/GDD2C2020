@@ -38,7 +38,7 @@ CREATE TABLE [LOS_TABLATUBBIES].Sucursal (
 	idSucursal INTEGER NOT NULL IDENTITY PRIMARY KEY,
 	direccion NVARCHAR(255),
 	mail NVARCHAR(255),
-	telefono INTEGER,
+	telefono DECIMAL(18,0),
 	ciudad NVARCHAR(255)
 );
 
@@ -93,14 +93,14 @@ CREATE TABLE [LOS_TABLATUBBIES].Compra (
 	nroCompra DECIMAL(18,0) NOT NULL PRIMARY KEY,
 	cliente INTEGER NOT NULL FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].Cliente(idCliente),
 	sucursal INTEGER NOT NULL FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].Sucursal(idSucursal),
-	fecha DATETIME
+	fecha DATETIME2(3)
 );
 
 CREATE TABLE [LOS_TABLATUBBIES].FacturaVta (
 	nroFactura DECIMAL(18,0) NOT NULL PRIMARY KEY,
 	sucursal INTEGER NOT NULL FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].Sucursal(idSucursal),
 	cliente INTEGER NOT NULL FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].Cliente(idCliente),
-	fecha DATETIME
+	fecha DATETIME2(3)
 );
 
 CREATE TABLE [LOS_TABLATUBBIES].ItemFactura (
@@ -143,28 +143,37 @@ DROP TABLE [LOS_TABLATUBBIES].Automovil
 DROP TABLE [LOS_TABLATUBBIES].Cliente
 */
 
--- Agregar una CONSTRAINT por fuera del CREATE TABLE:
--- ALTER TABLE Stock
--- ADD CONSTRAINT cantidad CHECK (cantidad>=0)
-
-
--- Agregar una FK por fuera del CREATE TABLE:
--- ALTER TABLE Stock
--- ADD CONSTRAINT producto_fk FOREIGN KEY (producto) REFERENCES Autoparte(codAutoparte)
-
 ---------------------------------------------------------------------------
 -------------------------------- Vistas -----------------------------------
 ---------------------------------------------------------------------------
 
+-- Autos en stock
 
+	CREATE VIEW [LOS_TABLATUBBIES].AutosEnStock AS
+	SELECT a.nroChasis, m.nombre, YEAR(a.fechaAlta) [Año]
+	FROM [LOS_TABLATUBBIES].Stock s JOIN [LOS_TABLATUBBIES].Producto p ON p.codProducto = s.producto 
+									JOIN [LOS_TABLATUBBIES].Automovil a ON a.nroChasis = s.producto
+									JOIN [LOS_TABLATUBBIES].Modelo m ON m.codModelo = p.modelo
+	WHERE s.cantidadStock = 1;
+	GO
 
+-- Autopartes que requieren reposición (< 100 stock total)
+	
+	CREATE VIEW [LOS_TABLATUBBIES].AutopartesAreponer AS
+	SELECT a.descripcion, SUM(s.cantidadStock) [Stock total]
+	FROM [LOS_TABLATUBBIES].Autoparte a JOIN [LOS_TABLATUBBIES].Stock s ON s.producto = CAST(a.codAutoparte AS NVARCHAR)
+	GROUP BY a.descripcion
+	HAVING SUM(s.cantidadStock) < 100;
+	GO
 
+-- Facturación mensual del año pasado
 
-
-
-
-
-
+	CREATE VIEW [LOS_TABLATUBBIES].FacturacionMensualAñoPasado AS
+	SELECT MONTH(fac.fecha) [Mes], SUM(item.precioUnitario * item.cantidadItemFactura) [Facturación]
+	FROM [LOS_TABLATUBBIES].FacturaVta fac JOIN [LOS_TABLATUBBIES].ItemFactura item ON item.nroFactura = fac.nroFactura
+	WHERE YEAR(fac.fecha) = YEAR(GETDATE())-1
+	GROUP BY MONTH(fac.fecha)
+	ORDER BY 1;
 ---------------------------------------------------------------------------
 -------------------------------Migracion-----------------------------------
 ---------------------------------------------------------------------------
@@ -365,6 +374,92 @@ BEGIN
 	FROM [LOS_TABLATUBBIES].ItemCompra C JOIN Compra Com ON C.nroCompra = Com.nroCompra
 	WHERE LEN(C.producto)>5
 	GROUP BY C.producto, Com.sucursal
+END;
+GO
+
+---------------------------------------------------------------------------
+-------------------------- Procedures Basicos -----------------------------
+---------------------------------------------------------------------------
+
+CREATE PROCEDURE [LOS_TABLATUBBIES].comprarAutomovil(@sucursal INTEGER, @nroChasis NVARCHAR(50), @nroMotor NVARCHAR(50), 
+	@patente NVARCHAR(50), @fechaAlta DATETIME2(3), @cantKM DECIMAL(18,0), @codModelo DECIMAL(18,0), @nroCompra DECIMAL(18,0), 
+	@fechaCompra DATETIME2(3), @precioUnitario DECIMAL(12,2), @idCliente INTEGER)
+AS
+BEGIN
+	INSERT INTO [LOS_TABLATUBBIES].Compra(nroCompra, cliente, sucursal, fecha)
+	VALUES (@nroCompra, @idCliente, @sucursal, @fechaCompra)
+
+	INSERT INTO [LOS_TABLATUBBIES].Producto(codProducto, modelo, tipoProducto)
+	VALUES (@nroChasis, @codModelo, '1010')
+
+	INSERT INTO [LOS_TABLATUBBIES].ItemCompra(nroCompra, precioUnitario, cantidadItemCompra, producto)
+	VALUES (@nroCompra, @precioUnitario, 1, @nroChasis)
+
+	INSERT INTO [LOS_TABLATUBBIES].Automovil(nroChasis, patente, nroMotor, fechaAlta, cantKM)
+	VALUES (@nroChasis, @patente, @nroMotor, @fechaAlta, @cantKM)
+
+END;
+GO
+
+CREATE PROCEDURE [LOS_TABLATUBBIES].comprarAutoparte(@sucursal INTEGER, @codAutoparte NVARCHAR(50), @codModelo DECIMAL(18,0),
+	@fabricante NVARCHAR(255), @nroCompra DECIMAL(18,0), @fechaCompra DATETIME2(3), @cantidad INTEGER, @precioUnitario DECIMAL(12,2))
+AS
+BEGIN
+	INSERT INTO [LOS_TABLATUBBIES].Compra(nroCompra, sucursal, fecha)
+	VALUES (@nroCompra, @sucursal, @fechaCompra)
+
+	IF NOT EXISTS (SELECT * FROM [LOS_TABLATUBBIES].Producto WHERE codProducto = @codAutoparte)
+		INSERT INTO [LOS_TABLATUBBIES].Producto(codProducto, modelo, tipoProducto)
+		VALUES (@codAutoparte, @codModelo, '1020')
+			
+		INSERT INTO [LOS_TABLATUBBIES].Autoparte(codAutoparte, fabricante)
+		VALUES (@codAutoparte, @fabricante);
+
+	INSERT INTO [LOS_TABLATUBBIES].ItemCompra(nroCompra, precioUnitario, cantidadItemCompra, producto)
+	VALUES (@nroCompra, @precioUnitario, @cantidad, @codAutoparte)
+
+END;
+GO
+
+CREATE PROCEDURE [LOS_TABLATUBBIES].facturarAutomovil(@sucursal INTEGER, @nroChasis NVARCHAR(50), @nroFactura DECIMAL(18,0), 
+	@fechaFact DATETIME2(3), @idCliente INTEGER)
+AS
+BEGIN
+
+	IF (SELECT cantidadStock FROM [LOS_TABLATUBBIES].Stock WHERE producto = @nroChasis) = 1
+		INSERT INTO [LOS_TABLATUBBIES].FacturaVta(nroFactura, cliente, sucursal, fecha)
+		VALUES (@nroFactura, @idCliente, @sucursal, @fechaFact)
+
+		INSERT INTO [LOS_TABLATUBBIES].ItemFactura(nroFactura, precioUnitario, cantidadItemFactura, producto)
+		VALUES (@nroFactura, (SELECT precioUnitario FROM ItemCompra WHERE producto = @nroChasis)*1.2 , 1, @nroChasis)
+		
+		UPDATE [LOS_TABLATUBBIES].Stock SET cantidadStock = 0 WHERE producto = @nroChasis;
+	ELSE 
+		PRINT 'Fuera de stock.';
+
+END;
+GO
+
+CREATE PROCEDURE [LOS_TABLATUBBIES].facturarAutoparte(@sucursal INTEGER, @codAutoparte NVARCHAR(50), @nroFactura DECIMAL(18,0), 
+	@fechaFact DATETIME2(3), @idCliente INTEGER, @cantidad INTEGER, @precioUnitario DECIMAL(12,2))
+AS
+BEGIN
+
+	IF (SELECT SUM(cantidadStock) FROM [LOS_TABLATUBBIES].Stock WHERE producto = @nroChasis GROUP BY producto) >= @cantidad
+		INSERT INTO [LOS_TABLATUBBIES].FacturaVta(nroFactura, cliente, sucursal, fecha)
+		VALUES (@nroFactura, @idCliente, @sucursal, @fechaFact)
+
+		INSERT INTO [LOS_TABLATUBBIES].ItemFactura(nroFactura, precioUnitario, cantidadItemFactura, producto)
+		VALUES (@nroFactura, @precioUnitario, @cantidad, @codAutoparte)
+
+		UPDATE [LOS_TABLATUBBIES].Stock SET cantidadStock = (SELECT MAX(cantidadStock) 
+																FROM [LOS_TABLATUBBIES].Stock 
+																WHERE producto = @codAutoparte) - @cantidad
+		ORDER BY cantidadStock DESC
+		WHERE producto = @codAutoparte
+		LIMIT 1;
+	ELSE 
+		PRINT 'Fuera de stock.';
 END;
 GO
 

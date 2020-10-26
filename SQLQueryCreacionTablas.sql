@@ -173,7 +173,7 @@ DROP TABLE [LOS_TABLATUBBIES].Cliente
 	FROM [LOS_TABLATUBBIES].FacturaVta fac JOIN [LOS_TABLATUBBIES].ItemFactura item ON item.nroFactura = fac.nroFactura
 	WHERE YEAR(fac.fecha) = YEAR(GETDATE())-1
 	GROUP BY MONTH(fac.fecha)
-	ORDER BY 1;
+	GO
 ---------------------------------------------------------------------------
 -------------------------------Migracion-----------------------------------
 ---------------------------------------------------------------------------
@@ -361,17 +361,17 @@ AS
 BEGIN
 	INSERT INTO [LOS_TABLATUBBIES].Stock(producto, sucursal, cantidadStock)
 	SELECT C.producto, Com.sucursal, (SUM(C.cantidadItemCompra) - SUM(F.cantidadItemFactura))
-	FROM ItemCompra C JOIN [LOS_TABLATUBBIES].ItemFactura F ON C.producto = F.producto JOIN [LOS_TABLATUBBIES].Compra Com ON C.nroCompra = Com.nroCompra
+	FROM [LOS_TABLATUBBIES].ItemCompra C JOIN [LOS_TABLATUBBIES].ItemFactura F ON C.producto = F.producto JOIN [LOS_TABLATUBBIES].Compra Com ON C.nroCompra = Com.nroCompra
 	WHERE LEN(C.producto)<5
 	GROUP BY C.producto, Com.sucursal
 
 	INSERT INTO [LOS_TABLATUBBIES].Stock(producto, sucursal, cantidadStock)
 	SELECT C.producto, Com.sucursal, 
 	CASE
-		WHEN EXISTS (SELECT * FROM ItemFactura WHERE producto = C.producto) THEN 0
+		WHEN EXISTS (SELECT * FROM [LOS_TABLATUBBIES].ItemFactura WHERE producto = C.producto) THEN 0
 		ELSE 1
 	END
-	FROM [LOS_TABLATUBBIES].ItemCompra C JOIN Compra Com ON C.nroCompra = Com.nroCompra
+	FROM [LOS_TABLATUBBIES].ItemCompra C JOIN [LOS_TABLATUBBIES].Compra Com ON C.nroCompra = Com.nroCompra
 	WHERE LEN(C.producto)>5
 	GROUP BY C.producto, Com.sucursal
 END;
@@ -409,12 +409,13 @@ BEGIN
 	VALUES (@nroCompra, @sucursal, @fechaCompra)
 
 	IF NOT EXISTS (SELECT * FROM [LOS_TABLATUBBIES].Producto WHERE codProducto = @codAutoparte)
+		BEGIN
 		INSERT INTO [LOS_TABLATUBBIES].Producto(codProducto, modelo, tipoProducto)
 		VALUES (@codAutoparte, @codModelo, '1020')
 			
 		INSERT INTO [LOS_TABLATUBBIES].Autoparte(codAutoparte, fabricante)
 		VALUES (@codAutoparte, @fabricante);
-
+		END
 	INSERT INTO [LOS_TABLATUBBIES].ItemCompra(nroCompra, precioUnitario, cantidadItemCompra, producto)
 	VALUES (@nroCompra, @precioUnitario, @cantidad, @codAutoparte)
 
@@ -427,39 +428,43 @@ AS
 BEGIN
 
 	IF (SELECT cantidadStock FROM [LOS_TABLATUBBIES].Stock WHERE producto = @nroChasis) = 1
+		BEGIN
 		INSERT INTO [LOS_TABLATUBBIES].FacturaVta(nroFactura, cliente, sucursal, fecha)
 		VALUES (@nroFactura, @idCliente, @sucursal, @fechaFact)
 
 		INSERT INTO [LOS_TABLATUBBIES].ItemFactura(nroFactura, precioUnitario, cantidadItemFactura, producto)
 		VALUES (@nroFactura, (SELECT precioUnitario FROM ItemCompra WHERE producto = @nroChasis)*1.2 , 1, @nroChasis)
-		
+
 		UPDATE [LOS_TABLATUBBIES].Stock SET cantidadStock = 0 WHERE producto = @nroChasis;
+		END;
 	ELSE 
 		PRINT 'Fuera de stock.';
 
 END;
 GO
 
-CREATE PROCEDURE [LOS_TABLATUBBIES].facturarAutoparte(@sucursal INTEGER, @codAutoparte NVARCHAR(50), @nroFactura DECIMAL(18,0), 
+CREATE PROCEDURE [LOS_TABLATUBBIES].facturarAutoparte(@sucursal INTEGER, @codAutoparte NVARCHAR(50), @nroChasis NVARCHAR(50), @nroFactura DECIMAL(18,0), 
 	@fechaFact DATETIME2(3), @idCliente INTEGER, @cantidad INTEGER, @precioUnitario DECIMAL(12,2))
 AS
 BEGIN
 
 	IF (SELECT SUM(cantidadStock) FROM [LOS_TABLATUBBIES].Stock WHERE producto = @nroChasis GROUP BY producto) >= @cantidad
+		BEGIN
 		INSERT INTO [LOS_TABLATUBBIES].FacturaVta(nroFactura, cliente, sucursal, fecha)
 		VALUES (@nroFactura, @idCliente, @sucursal, @fechaFact)
 
 		INSERT INTO [LOS_TABLATUBBIES].ItemFactura(nroFactura, precioUnitario, cantidadItemFactura, producto)
 		VALUES (@nroFactura, @precioUnitario, @cantidad, @codAutoparte)
 
-		UPDATE [LOS_TABLATUBBIES].Stock SET cantidadStock = (SELECT MAX(cantidadStock) 
+		UPDATE [LOS_TABLATUBBIES].Stock SET cantidadStock = (SELECT TOP 1 MAX(cantidadStock) 
 																FROM [LOS_TABLATUBBIES].Stock 
 																WHERE producto = @codAutoparte) - @cantidad
-		ORDER BY cantidadStock DESC
 		WHERE producto = @codAutoparte
-		LIMIT 1;
-	ELSE 
-		PRINT 'Fuera de stock.';
+		END
+	ELSE
+		BEGIN 
+		PRINT 'Fuera de stock.'
+		END
 END;
 GO
 
@@ -479,8 +484,8 @@ EXEC [LOS_TABLATUBBIES].cargarFactura
 EXEC [LOS_TABLATUBBIES].cargarItemFactura
 EXEC [LOS_TABLATUBBIES].cargarStock
 
--- Dropeo de stored procedures
-/*
+-- Dropeo de stored procedures que utilizamos para la migracion
+
 DROP PROCEDURE [LOS_TABLATUBBIES].cargarCliente
 DROP PROCEDURE [LOS_TABLATUBBIES].cargarAutomovil
 DROP PROCEDURE [LOS_TABLATUBBIES].cargarAutoparte
@@ -496,20 +501,3 @@ DROP PROCEDURE [LOS_TABLATUBBIES].cargarItemCompra
 DROP PROCEDURE [LOS_TABLATUBBIES].cargarFactura
 DROP PROCEDURE [LOS_TABLATUBBIES].cargarItemFactura
 DROP PROCEDURE [LOS_TABLATUBBIES].cargarStock
-*/
-
-SELECT * FROM [LOS_TABLATUBBIES].Cliente
-SELECT * FROM [LOS_TABLATUBBIES].Automovil
-SELECT * FROM [LOS_TABLATUBBIES].Autoparte
-SELECT * FROM [LOS_TABLATUBBIES].Sucursal
-SELECT * FROM [LOS_TABLATUBBIES].Caja
-SELECT * FROM [LOS_TABLATUBBIES].Transmision
-SELECT * FROM [LOS_TABLATUBBIES].TipoAuto
-SELECT * FROM [LOS_TABLATUBBIES].TipoProducto
-SELECT * FROM [LOS_TABLATUBBIES].Modelo
-SELECT * FROM [LOS_TABLATUBBIES].Producto
-SELECT * FROM [LOS_TABLATUBBIES].Compra
-SELECT * FROM [LOS_TABLATUBBIES].ItemCompra
-SELECT * FROM [LOS_TABLATUBBIES].FacturaVta
-SELECT * FROM [LOS_TABLATUBBIES].ItemFactura
-SELECT * FROM [LOS_TABLATUBBIES].Stock

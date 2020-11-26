@@ -15,19 +15,19 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_Fabricante(
 )
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_ItemCompra(
-	idItemCompra INTEGER NOT NULL PRIMARY KEY,
+	idItemCompra INTEGER NOT NULL IDENTITY PRIMARY KEY,
 	precioUnitario DECIMAL(12,2),
 	cantidadItemCompra INTEGER
 )
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_ItemVenta(
-	idItemVenta INTEGER NOT NULL PRIMARY KEY,
+	idItemVenta INTEGER NOT NULL IDENTITY PRIMARY KEY,
 	precioUnitario DECIMAL(12,2),
 	cantidadItemVenta INTEGER
 )
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_Automovil(
-	nroChassis NVARCHAR(50) NOT NULL PRIMARY KEY,
+	nroChasis NVARCHAR(50) NOT NULL PRIMARY KEY,
 	patente NVARCHAR(50),
 	nroMotor NVARCHAR(50),
 	fechaAlta DATETIME2(3),
@@ -41,12 +41,12 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_Tiempo(
 )
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_Stock(
-	idStock INTEGER NOT NULL PRIMARY KEY,
+	idStock INTEGER NOT NULL IDENTITY PRIMARY KEY,
 	cantidadStock INTEGER
 )
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_Cliente(
-	idCliente INTEGER NOT NULL PRIMARY KEY,
+	idCliente INTEGER NOT NULL IDENTITY PRIMARY KEY,
 	nombre NVARCHAR(255),
 	apellido NVARCHAR(255),
 	direccion NVARCHAR(255),
@@ -142,7 +142,7 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_Hecho_Venta(
 	precioPromAutopartes DECIMAL(18,2)
 )
 
-DROP TABLE [LOS_TABLATUBBIES].BI_Hecho_Venta
+/*DROP TABLE [LOS_TABLATUBBIES].BI_Hecho_Venta
 DROP TABLE [LOS_TABLATUBBIES].BI_Hecho_Compra
 DROP TABLE [LOS_TABLATUBBIES].BI_Potencia
 DROP TABLE [LOS_TABLATUBBIES].BI_TipoMotor
@@ -160,4 +160,224 @@ DROP TABLE [LOS_TABLATUBBIES].BI_ItemVenta
 DROP TABLE [LOS_TABLATUBBIES].BI_ItemCompra
 DROP TABLE [LOS_TABLATUBBIES].BI_Fabricante
 DROP TABLE [LOS_TABLATUBBIES].BI_Rubro
-DROP TABLE [LOS_TABLATUBBIES].BI_Autoparte
+DROP TABLE [LOS_TABLATUBBIES].BI_Autoparte*/
+
+GO
+
+---------------------------------------------------------------------------
+-------------------------------Migracion-----------------------------------
+---------------------------------------------------------------------------
+
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarClienteBI
+AS
+BEGIN
+    INSERT INTO [LOS_TABLATUBBIES].BI_Cliente(nombre, apellido, direccion, dni, mail, fechaNac)
+	SELECT DISTINCT nombre, apellido, direccion, dni, mail, fechaNac
+	FROM [LOS_TABLATUBBIES].Cliente
+	WHERE dni IS NOT NULL
+END;
+GO
+
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarSucursalBI
+AS
+BEGIN
+    INSERT INTO [LOS_TABLATUBBIES].BI_Sucursal(idSucursal, direccion, mail, telefono, ciudad)
+	SELECT DISTINCT idSucursal, direccion, mail, telefono, ciudad
+	FROM [LOS_TABLATUBBIES].Sucursal
+	WHERE direccion IS NOT NULL
+END;
+GO
+
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarModeloBI
+AS
+BEGIN
+    INSERT INTO [LOS_TABLATUBBIES].BI_Modelo(codModelo, nombre)
+	SELECT DISTINCT codModelo, nombre
+	FROM [LOS_TABLATUBBIES].Modelo
+	WHERE codModelo IS NOT NULL
+END;
+GO
+
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarTipoAutomovilBI
+AS
+BEGIN
+    INSERT INTO [LOS_TABLATUBBIES].BI_TipoAutomovil(codTipoAuto, descripcion)
+	SELECT DISTINCT codTipoAuto, descripcion
+	FROM [LOS_TABLATUBBIES].TipoAuto
+	WHERE codTipoAuto IS NOT NULL
+END;
+GO
+
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarTipoTransmisionBI
+AS
+BEGIN
+    INSERT INTO [LOS_TABLATUBBIES].BI_TipoTransmision(codTransmision, descTransmision)
+	SELECT DISTINCT codTransmision, descTransmision
+	FROM [LOS_TABLATUBBIES].Transmision
+	WHERE codTransmision IS NOT NULL
+END;
+GO
+
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarTipoCajaCambiosBI
+AS
+BEGIN
+    INSERT INTO [LOS_TABLATUBBIES].BI_TipoCajaCambios(codCaja, descCaja)
+	SELECT DISTINCT codCaja, descCaja
+	FROM [LOS_TABLATUBBIES].Caja
+	WHERE codCaja IS NOT NULL
+END;
+GO
+
+
+
+--No sé qué ponerle adentro
+
+/*CREATE PROCEDURE [LOS_TABLATUBBIES].cargarCantidadCambiosBI
+AS
+BEGIN
+    INSERT INTO [LOS_TABLATUBBIES].BI_CantidadCambios(idCantCambios, cantidad)
+	SELECT DISTINCT codCaja, descCaja
+	FROM [LOS_TABLATUBBIES].Caja
+	WHERE codCaja IS NOT NULL
+END;
+GO*/
+
+
+
+--Acá hice cosas medias feas tipo usé el id del Modelo para el codTipoMotor y el codMotor se lo metí al string tipoMotor
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarTipoMotorBI
+AS
+BEGIN
+    INSERT INTO [LOS_TABLATUBBIES].BI_TipoMotor(codTipoMotor, tipoMotor)
+	SELECT DISTINCT codModelo, codMotor
+	FROM [LOS_TABLATUBBIES].Modelo
+	WHERE codModelo IS NOT NULL
+END;
+GO
+
+--Acá hice algo parecido al anterior
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarPotenciaBI
+AS
+BEGIN
+    INSERT INTO [LOS_TABLATUBBIES].BI_Potencia(idPotencia, potencia)
+	SELECT DISTINCT codModelo, potencia
+	FROM [LOS_TABLATUBBIES].Modelo
+	WHERE codModelo IS NOT NULL
+END;
+GO
+
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarAutoparteBI
+AS
+BEGIN
+    INSERT INTO [LOS_TABLATUBBIES].BI_Autoparte(codAutoparte, descripcion)
+	SELECT DISTINCT codAutoparte, descripcion
+	FROM [LOS_TABLATUBBIES].Autoparte
+	WHERE codAutoparte IS NOT NULL
+END;
+GO
+
+
+--No sé qué ponerle adentro
+
+/*CREATE PROCEDURE [LOS_TABLATUBBIES].cargarRubroBI
+AS
+BEGIN
+    INSERT INTO [LOS_TABLATUBBIES].BI_Rubro(idRubro, rubro)
+	SELECT DISTINCT codAutoparte, descripcion
+	FROM [LOS_TABLATUBBIES].Autoparte
+	WHERE codAutoparte IS NOT NULL
+END;
+GO*/
+
+
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarFabricanteBI
+AS
+BEGIN
+    INSERT INTO [LOS_TABLATUBBIES].BI_Fabricante(idFabricante, fabricante)
+	SELECT DISTINCT codAutoparte, fabricante
+	FROM [LOS_TABLATUBBIES].Autoparte
+	WHERE codAutoparte IS NOT NULL
+END;
+GO
+
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarItemCompraBI
+AS
+BEGIN
+    INSERT INTO [LOS_TABLATUBBIES].BI_ItemCompra(precioUnitario, cantidadItemCompra)
+	SELECT DISTINCT precioUnitario, cantidadItemCompra
+	FROM [LOS_TABLATUBBIES].ItemCompra
+END;
+GO
+
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarItemVentaBI
+AS
+BEGIN
+    INSERT INTO [LOS_TABLATUBBIES].BI_ItemVenta(precioUnitario, cantidadItemVenta)
+	SELECT DISTINCT precioUnitario, cantidadItemFactura
+	FROM [LOS_TABLATUBBIES].ItemFactura
+END;
+GO
+
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarAutomovilBI
+AS
+BEGIN
+    INSERT INTO [LOS_TABLATUBBIES].BI_Automovil(nroChasis, patente, nroMotor, fechaAlta, cantKM)
+	SELECT DISTINCT nroChasis, patente, nroMotor, fechaAlta, cantKM
+	FROM [LOS_TABLATUBBIES].Automovil
+	WHERE nroChasis IS NOT NULL
+END;
+GO
+
+
+--No sé qué ponerle adentro
+
+/*CREATE PROCEDURE [LOS_TABLATUBBIES].cargarTiempoBI
+AS
+BEGIN
+    INSERT INTO [LOS_TABLATUBBIES].BI_Rubro(idRubro, rubro)
+	SELECT DISTINCT codAutoparte, descripcion
+	FROM [LOS_TABLATUBBIES].Autoparte
+	WHERE codAutoparte IS NOT NULL
+END;
+GO*/
+
+
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarStockBI
+AS
+BEGIN
+    INSERT INTO [LOS_TABLATUBBIES].BI_Stock(cantidadStock)
+	SELECT DISTINCT cantidadStock
+	FROM [LOS_TABLATUBBIES].Stock
+END;
+GO
+
+EXEC [LOS_TABLATUBBIES].cargarClienteBI
+EXEC [LOS_TABLATUBBIES].cargarSucursalBI
+EXEC [LOS_TABLATUBBIES].cargarModeloBI
+EXEC [LOS_TABLATUBBIES].cargarTipoAutomovilBI
+EXEC [LOS_TABLATUBBIES].cargarTipoTransmisionBI
+EXEC [LOS_TABLATUBBIES].cargarTipoCajaCambiosBI
+EXEC [LOS_TABLATUBBIES].cargarTipoMotorBI
+EXEC [LOS_TABLATUBBIES].cargarPotenciaBI
+EXEC [LOS_TABLATUBBIES].cargarAutoparteBI
+EXEC [LOS_TABLATUBBIES].cargarFabricanteBI
+EXEC [LOS_TABLATUBBIES].cargarItemCompraBI
+EXEC [LOS_TABLATUBBIES].cargarItemVentaBI
+EXEC [LOS_TABLATUBBIES].cargarAutomovilBI
+EXEC [LOS_TABLATUBBIES].cargarStockBI
+
+
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarClienteBI
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarSucursalBI
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarModeloBI
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarTipoAutomovilBI
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarTipoTransmisionBI
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarTipoCajaCambiosBI
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarTipoMotorBI
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarPotenciaBI
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarAutoparteBI
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarFabricanteBI
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarItemCompraBI
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarItemVentaBI
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarAutomovilBI
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarStockBI

@@ -205,8 +205,7 @@ BEGIN
 	WHERE direccion IS NOT NULL
 END;
 GO
-select * from Sucursal
-select * from Stock
+
 CREATE PROCEDURE [LOS_TABLATUBBIES].cargarModeloBI
 AS
 BEGIN

@@ -2,11 +2,6 @@
 -------------------------------Dimensiones---------------------------------
 ---------------------------------------------------------------------------
 
-CREATE TABLE [LOS_TABLATUBBIES].BI_Rubro(
-	idRubro INTEGER NOT NULL PRIMARY KEY,
-	rubro VARCHAR(25)
-)
-
 CREATE TABLE [LOS_TABLATUBBIES].BI_Fabricante(
 	idFabricante INTEGER NOT NULL PRIMARY KEY,
 	fabricante NVARCHAR(255)
@@ -14,7 +9,6 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_Fabricante(
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_Autoparte(
 	codAutoparte DECIMAL(18,0) NOT NULL PRIMARY KEY,
-	idRubro INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Rubro(idRubro),
 	idFabricante INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Fabricante(idFabricante),
 	descripcion NVARCHAR(255)
 )
@@ -25,31 +19,28 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_Tiempo(
 	anio INTEGER
 )
 
-CREATE TABLE [LOS_TABLATUBBIES].BI_Stock(
-	idStock INTEGER NOT NULL IDENTITY PRIMARY KEY,
-	cantidadStock INTEGER,
-	sucursal INTEGER,
-	producto NVARCHAR(50)
-)
-
 CREATE TABLE [LOS_TABLATUBBIES].BI_Sucursal(
 	idSucursal INTEGER NOT NULL PRIMARY KEY,
-	idStock INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Stock(idStock),
 	direccion NVARCHAR(255),
 	mail NVARCHAR(255),
 	telefono INTEGER,
 	ciudad NVARCHAR(255)
 )
 
+CREATE TABLE [LOS_TABLATUBBIES].BI_Stock(
+	producto NVARCHAR(50),
+	cantidadStock INTEGER,
+	sucursal INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Sucursal(idSucursal),
+	CONSTRAINT stock_pk_compuesta_BI PRIMARY KEY (producto, sucursal)
+)
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_ItemCompra(
 	idItemCompra INTEGER NOT NULL IDENTITY PRIMARY KEY,
-	idSucursal INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Sucursal(idSucursal),
+	producto  NVARCHAR(50),
 	fecha DATETIME,
-	sucursal INTEGER,
+	sucursal INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Sucursal(idSucursal),
 	precioUnitario DECIMAL(12,2),
-	cantidadItemCompra INTEGER,
-	producto NVARCHAR(50)
+	cantidadItemCompra INTEGER
 )
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_CantidadCambios(
@@ -159,14 +150,13 @@ DROP TABLE [LOS_TABLATUBBIES].BI_Hecho_Compra
 
 DROP TABLE [LOS_TABLATUBBIES].BI_Autoparte
 DROP TABLE [LOS_TABLATUBBIES].BI_Fabricante
-DROP TABLE [LOS_TABLATUBBIES].BI_Rubro
 
 DROP TABLE [LOS_TABLATUBBIES].BI_Tiempo
 
 DROP TABLE [LOS_TABLATUBBIES].BI_ItemVenta
 DROP TABLE [LOS_TABLATUBBIES].BI_ItemCompra
-DROP TABLE [LOS_TABLATUBBIES].BI_Sucursal
 DROP TABLE [LOS_TABLATUBBIES].BI_Stock
+DROP TABLE [LOS_TABLATUBBIES].BI_Sucursal
 
 DROP TABLE [LOS_TABLATUBBIES].BI_Cliente
 
@@ -186,6 +176,8 @@ GO
 -------------------------------Migracion-----------------------------------
 ---------------------------------------------------------------------------
 
+
+--DONE--
 CREATE PROCEDURE [LOS_TABLATUBBIES].cargarClienteBI
 AS
 BEGIN
@@ -200,17 +192,27 @@ CREATE PROCEDURE [LOS_TABLATUBBIES].cargarSucursalBI
 AS
 BEGIN
     INSERT INTO [LOS_TABLATUBBIES].BI_Sucursal(idSucursal, idStock ,direccion, mail, telefono, ciudad)
-	SELECT DISTINCT idSucursal,  ,direccion, mail, telefono, ciudad
-	FROM [LOS_TABLATUBBIES].Sucursal
+	SELECT *
+	FROM [LOS_TABLATUBBIES].Stock stk
+	JOIN [LOS_TABLATUBBIES].Sucursal s ON s.idSucursal = stk.sucursal
 	WHERE direccion IS NOT NULL
 END;
 GO
 
+/*
+	SELECT fecha, sucursal, precioUnitario, cantidadItemFactura, producto  
+	FROM [LOS_TABLATUBBIES].FacturaVta fv 
+	JOIN [LOS_TABLATUBBIES].ItemFactura ifac ON fv.nroFactura = ifac.nroFactura
+	JOIN [LOS_TABLATUBBIES].Producto p ON ifac.producto = p.codProducto
+*/
+------------------------------------------------------------------------------------------------------
 CREATE PROCEDURE [LOS_TABLATUBBIES].cargarModeloBI
 AS
 BEGIN
-    INSERT INTO [LOS_TABLATUBBIES].BI_Modelo(codModelo, nombre)
-	SELECT DISTINCT codModelo, nombre
+    INSERT INTO [LOS_TABLATUBBIES].BI_Modelo(codModelo, idPotencia, codTipoMotor, codCaja, codTransmision, codTipoAuto, nombre)
+	SELECT codModelo, (SELECT idPotencia FROM [LOS_TABLATUBBIES].BI_Potencia WHERE idPotencia = codModelo), 
+	(SELECT codTipoMotor FROM [LOS_TABLATUBBIES].BI_TipoMotor WHERE codTipoMotor = codModelo),
+	codCaja, codTransmision, codTipoAuto, nombre
 	FROM [LOS_TABLATUBBIES].Modelo
 	WHERE codModelo IS NOT NULL
 END;
@@ -261,7 +263,6 @@ END;
 GO*/
 
 
-
 --Acá hice cosas medias feas tipo usé el id del Modelo para el codTipoMotor y el codMotor se lo metí al string tipoMotor
 CREATE PROCEDURE [LOS_TABLATUBBIES].cargarTipoMotorBI
 AS
@@ -287,26 +288,12 @@ GO
 CREATE PROCEDURE [LOS_TABLATUBBIES].cargarAutoparteBI
 AS
 BEGIN
-    INSERT INTO [LOS_TABLATUBBIES].BI_Autoparte(codAutoparte, descripcion)
-	SELECT DISTINCT codAutoparte, descripcion
+    INSERT INTO [LOS_TABLATUBBIES].BI_Autoparte(codAutoparte, idFabricante, descripcion)
+	SELECT DISTINCT codAutoparte, fabricante, descripcion
 	FROM [LOS_TABLATUBBIES].Autoparte
 	WHERE codAutoparte IS NOT NULL
 END;
 GO
-
-
---No sé qué ponerle adentro
-
-/*CREATE PROCEDURE [LOS_TABLATUBBIES].cargarRubroBI
-AS
-BEGIN
-    INSERT INTO [LOS_TABLATUBBIES].BI_Rubro(idRubro, rubro)
-	SELECT DISTINCT codAutoparte, descripcion
-	FROM [LOS_TABLATUBBIES].Autoparte
-	WHERE codAutoparte IS NOT NULL
-END;
-GO*/
-
 
 CREATE PROCEDURE [LOS_TABLATUBBIES].cargarFabricanteBI
 AS
@@ -343,12 +330,14 @@ GO
 CREATE PROCEDURE [LOS_TABLATUBBIES].cargarAutomovilBI
 AS
 BEGIN
-    INSERT INTO [LOS_TABLATUBBIES].BI_Automovil(nroChasis, patente, nroMotor, fechaAlta, cantKM)
-	SELECT DISTINCT nroChasis, patente, nroMotor, fechaAlta, cantKM
-	FROM [LOS_TABLATUBBIES].Automovil
-	WHERE nroChasis IS NOT NULL
+    INSERT INTO [LOS_TABLATUBBIES].BI_Automovil(nroChasis, codModelo, patente, nroMotor, fechaAlta, cantKM)
+	SELECT nroChasis, (SELECT codModelo FROM BI_Modelo WHERE codModelo = modelo), patente, nroMotor, fechaAlta, cantKM
+	FROM [LOS_TABLATUBBIES].Automovil a
+	JOIN [LOS_TABLATUBBIES].Producto prod ON a.nroChasis = prod.codProducto
+	WHERE nroChasis IS NOT NULL	
 END;
 GO
+
 
 
 --No sé qué ponerle adentro
@@ -419,11 +408,12 @@ WHERE producto = '1001'
 SELECT * FROM [LOS_TABLATUBBIES].BI_ItemVenta
 SELECT * FROM [LOS_TABLATUBBIES].BI_Autoparte
 SELECT * FROM [LOS_TABLATUBBIES].BI_Fabricante
-SELECT * FROM [LOS_TABLATUBBIES].Autoparte
+SELECT * FROM [LOS_TABLATUBBIES].Modelo
 SELECT * FROM [LOS_TABLATUBBIES].BI_TipoTransmision
 SELECT * FROM [LOS_TABLATUBBIES].Transmision
 SELECT * FROM [LOS_TABLATUBBIES].BI_TipoCajaCambios
 SELECT * FROM [LOS_TABLATUBBIES].Caja
+SELECT * FROM [LOS_TABLATUBBIES].Stock
 SELECT * FROM [LOS_TABLATUBBIES].TipoAuto
 SELECT * FROM [LOS_TABLATUBBIES].BI_TipoAutomovil
 SELECT DISTINCT * FROM [LOS_TABLATUBBIES].BI_Potencia

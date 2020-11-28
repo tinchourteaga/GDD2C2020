@@ -3,7 +3,7 @@
 ---------------------------------------------------------------------------
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_Fabricante(
-	idFabricante INTEGER NOT NULL PRIMARY KEY,
+	idFabricante INTEGER NOT NULL IDENTITY PRIMARY KEY,
 	fabricante NVARCHAR(255)
 )
 
@@ -14,7 +14,7 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_Autoparte(
 )
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_Tiempo(
-	idCompra INTEGER NOT NULL IDENTITY PRIMARY KEY,
+	idTiempo INTEGER NOT NULL IDENTITY PRIMARY KEY,
 	mes INTEGER,
 	anio INTEGER
 )
@@ -55,12 +55,12 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_TipoCajaCambios(
 )
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_Potencia(
-	idPotencia INTEGER NOT NULL PRIMARY KEY,
+	idPotencia INTEGER NOT NULL IDENTITY PRIMARY KEY,
 	potencia DECIMAL(18,0)
 )
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_TipoMotor(
-	codTipoMotor INTEGER NOT NULL PRIMARY KEY,
+	codTipoMotor INTEGER NOT NULL IDENTITY PRIMARY KEY,
 	tipoMotor VARCHAR(25)
 )
 
@@ -121,7 +121,7 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_ItemVenta(
 ---------------------------------------------------------------------------
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_Hecho_Compra(
-	idTiempo INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Tiempo(idCompra),
+	idTiempo INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Tiempo(idTiempo),
 	idCliente INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Cliente(idCliente),
 	idAutoparte DECIMAL(18,0) FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Autoparte(codAutoparte),
 	idAutomovil NVARCHAR(50) FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Automovil(nroChasis),
@@ -133,7 +133,7 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_Hecho_Compra(
 )
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_Hecho_Venta(
-	idTiempo INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Tiempo(idCompra),
+	idTiempo INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Tiempo(idTiempo),
 	idCliente INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Cliente(idCliente),
 	idAutoparte DECIMAL(18,0) FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Autoparte(codAutoparte),
 	idAutomovil NVARCHAR(50) FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Automovil(nroChasis),
@@ -176,8 +176,6 @@ GO
 -------------------------------Migracion-----------------------------------
 ---------------------------------------------------------------------------
 
-
---DONE--
 CREATE PROCEDURE [LOS_TABLATUBBIES].cargarClienteBI
 AS
 BEGIN
@@ -187,8 +185,8 @@ BEGIN
 	WHERE dni IS NOT NULL
 END;
 GO
-
-CREATE PROCEDURE [LOS_TABLATUBBIES].cargarSucursalBI
+--En stand by--
+/*CREATE PROCEDURE [LOS_TABLATUBBIES].cargarSucursalBI
 AS
 BEGIN
     INSERT INTO [LOS_TABLATUBBIES].BI_Sucursal(idSucursal, idStock ,direccion, mail, telefono, ciudad)
@@ -197,44 +195,43 @@ BEGIN
 	JOIN [LOS_TABLATUBBIES].Sucursal s ON s.idSucursal = stk.sucursal
 	WHERE direccion IS NOT NULL
 END;
-GO
+GO*/
 
-/*
-	SELECT fecha, sucursal, precioUnitario, cantidadItemFactura, producto  
-	FROM [LOS_TABLATUBBIES].FacturaVta fv 
-	JOIN [LOS_TABLATUBBIES].ItemFactura ifac ON fv.nroFactura = ifac.nroFactura
-	JOIN [LOS_TABLATUBBIES].Producto p ON ifac.producto = p.codProducto
-*/
-------------------------------------------------------------------------------------------------------
-CREATE PROCEDURE [LOS_TABLATUBBIES].cargarModeloBI
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarTiempoBI
 AS
 BEGIN
-    INSERT INTO [LOS_TABLATUBBIES].BI_Modelo(codModelo, idPotencia, codTipoMotor, codCaja, codTransmision, codTipoAuto, nombre)
-	SELECT codModelo, (SELECT idPotencia FROM [LOS_TABLATUBBIES].BI_Potencia WHERE idPotencia = codModelo), 
-	(SELECT codTipoMotor FROM [LOS_TABLATUBBIES].BI_TipoMotor WHERE codTipoMotor = codModelo),
-	codCaja, codTransmision, codTipoAuto, nombre
-	FROM [LOS_TABLATUBBIES].Modelo
-	WHERE codModelo IS NOT NULL
+    INSERT INTO [LOS_TABLATUBBIES].BI_Tiempo(mes, anio)
+	SELECT DISTINCT MONTH(fecha) Mes, YEAR(fecha) Anio
+	FROM [LOS_TABLATUBBIES].Compra
+	WHERE YEAR(fecha) = 2018
+	ORDER BY Anio, Mes ASC
+
+	INSERT INTO [LOS_TABLATUBBIES].BI_Tiempo(mes, anio)
+	SELECT DISTINCT MONTH(fecha) Mes, YEAR(fecha) Anio
+	FROM [LOS_TABLATUBBIES].FacturaVta
+	WHERE YEAR(fecha) >= 2019
+	ORDER BY Anio, Mes ASC
 END;
 GO
 
-CREATE PROCEDURE [LOS_TABLATUBBIES].cargarTipoAutomovilBI
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarFabricanteBI
 AS
 BEGIN
-    INSERT INTO [LOS_TABLATUBBIES].BI_TipoAutomovil(codTipoAuto, descripcion)
-	SELECT DISTINCT codTipoAuto, descripcion
-	FROM [LOS_TABLATUBBIES].TipoAuto
-	WHERE codTipoAuto IS NOT NULL
+    INSERT INTO [LOS_TABLATUBBIES].BI_Fabricante(fabricante)
+	SELECT DISTINCT fabricante
+	FROM [LOS_TABLATUBBIES].Autoparte
+	WHERE codAutoparte IS NOT NULL
 END;
 GO
 
-CREATE PROCEDURE [LOS_TABLATUBBIES].cargarTipoTransmisionBI
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarAutoparteBI
 AS
 BEGIN
-    INSERT INTO [LOS_TABLATUBBIES].BI_TipoTransmision(codTransmision, descTransmision)
-	SELECT DISTINCT codTransmision, descTransmision
-	FROM [LOS_TABLATUBBIES].Transmision
-	WHERE codTransmision IS NOT NULL
+    INSERT INTO [LOS_TABLATUBBIES].BI_Autoparte(codAutoparte, idFabricante, descripcion)
+	SELECT DISTINCT codAutoparte, idFabricante, descripcion
+	FROM [LOS_TABLATUBBIES].Autoparte ap
+	JOIN [LOS_TABLATUBBIES].BI_Fabricante fab ON ap.fabricante = fab.fabricante
+	WHERE codAutoparte IS NOT NULL
 END;
 GO
 
@@ -248,62 +245,77 @@ BEGIN
 END;
 GO
 
-
-
---No sé qué ponerle adentro
-
-/*CREATE PROCEDURE [LOS_TABLATUBBIES].cargarCantidadCambiosBI
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarTipoTransmisionBI
 AS
 BEGIN
-    INSERT INTO [LOS_TABLATUBBIES].BI_CantidadCambios(idCantCambios, cantidad)
-	SELECT DISTINCT codCaja, descCaja
-	FROM [LOS_TABLATUBBIES].Caja
-	WHERE codCaja IS NOT NULL
+    INSERT INTO [LOS_TABLATUBBIES].BI_TipoTransmision(codTransmision, descTransmision)
+	SELECT DISTINCT codTransmision, descTransmision
+	FROM [LOS_TABLATUBBIES].Transmision
+	WHERE codTransmision IS NOT NULL
 END;
-GO*/
+GO
 
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarTipoAutomovilBI
+AS
+BEGIN
+    INSERT INTO [LOS_TABLATUBBIES].BI_TipoAutomovil(codTipoAuto, descripcion)
+	SELECT DISTINCT codTipoAuto, descripcion
+	FROM [LOS_TABLATUBBIES].TipoAuto
+	WHERE codTipoAuto IS NOT NULL
+END;
+GO
 
---Acá hice cosas medias feas tipo usé el id del Modelo para el codTipoMotor y el codMotor se lo metí al string tipoMotor
 CREATE PROCEDURE [LOS_TABLATUBBIES].cargarTipoMotorBI
 AS
 BEGIN
-    INSERT INTO [LOS_TABLATUBBIES].BI_TipoMotor(codTipoMotor, tipoMotor)
-	SELECT DISTINCT codModelo, codMotor
+    INSERT INTO [LOS_TABLATUBBIES].BI_TipoMotor(tipoMotor)
+	SELECT DISTINCT codMotor codigo
 	FROM [LOS_TABLATUBBIES].Modelo
 	WHERE codModelo IS NOT NULL
+	ORDER BY codigo ASC
 END;
 GO
 
---Acá hice algo parecido al anterior
 CREATE PROCEDURE [LOS_TABLATUBBIES].cargarPotenciaBI
 AS
 BEGIN
-    INSERT INTO [LOS_TABLATUBBIES].BI_Potencia(idPotencia, potencia)
-	SELECT DISTINCT codModelo, potencia
+    INSERT INTO [LOS_TABLATUBBIES].BI_Potencia(potencia)
+	SELECT DISTINCT potencia
 	FROM [LOS_TABLATUBBIES].Modelo
 	WHERE codModelo IS NOT NULL
 END;
 GO
 
-CREATE PROCEDURE [LOS_TABLATUBBIES].cargarAutoparteBI
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarModeloBI
 AS
 BEGIN
-    INSERT INTO [LOS_TABLATUBBIES].BI_Autoparte(codAutoparte, idFabricante, descripcion)
-	SELECT DISTINCT codAutoparte, fabricante, descripcion
-	FROM [LOS_TABLATUBBIES].Autoparte
-	WHERE codAutoparte IS NOT NULL
+    INSERT INTO [LOS_TABLATUBBIES].BI_Modelo(codModelo, idPotencia, codTipoMotor, codCaja, codTransmision, codTipoAuto, nombre)
+	SELECT codModelo, idPotencia, codTipoMotor, codCaja, codTransmision, codTipoAuto, nombre
+	FROM [LOS_TABLATUBBIES].Modelo m
+	JOIN [LOS_TABLATUBBIES].BI_Potencia p ON m.potencia = p.potencia
+	JOIN [LOS_TABLATUBBIES].BI_TipoMotor tm ON m.codMotor = tm.tipoMotor
+	WHERE codModelo IS NOT NULL
 END;
 GO
 
-CREATE PROCEDURE [LOS_TABLATUBBIES].cargarFabricanteBI
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarAutomovilBI
 AS
 BEGIN
-    INSERT INTO [LOS_TABLATUBBIES].BI_Fabricante(idFabricante, fabricante)
-	SELECT DISTINCT codAutoparte, fabricante
-	FROM [LOS_TABLATUBBIES].Autoparte
-	WHERE codAutoparte IS NOT NULL
+    INSERT INTO [LOS_TABLATUBBIES].BI_Automovil(nroChasis, codModelo, patente, nroMotor, fechaAlta, cantKM)
+	SELECT nroChasis, (SELECT codModelo FROM [LOS_TABLATUBBIES].BI_Modelo WHERE codModelo = modelo), patente, nroMotor, fechaAlta, cantKM
+	FROM [LOS_TABLATUBBIES].Automovil a
+	JOIN [LOS_TABLATUBBIES].Producto prod ON a.nroChasis = prod.codProducto
+	WHERE nroChasis IS NOT NULL	
 END;
 GO
+
+/*
+	SELECT fecha, sucursal, precioUnitario, cantidadItemFactura, producto  
+	FROM [LOS_TABLATUBBIES].FacturaVta fv 
+	JOIN [LOS_TABLATUBBIES].ItemFactura ifac ON fv.nroFactura = ifac.nroFactura
+	JOIN [LOS_TABLATUBBIES].Producto p ON ifac.producto = p.codProducto
+*/
+------------------------------------------------------------------------------------------------------
 
 CREATE PROCEDURE [LOS_TABLATUBBIES].cargarItemCompraBI 
 AS
@@ -326,32 +338,6 @@ BEGIN
 	JOIN [LOS_TABLATUBBIES].Producto p ON ifac.producto = p.codProducto
 END;
 GO
-
-CREATE PROCEDURE [LOS_TABLATUBBIES].cargarAutomovilBI
-AS
-BEGIN
-    INSERT INTO [LOS_TABLATUBBIES].BI_Automovil(nroChasis, codModelo, patente, nroMotor, fechaAlta, cantKM)
-	SELECT nroChasis, (SELECT codModelo FROM BI_Modelo WHERE codModelo = modelo), patente, nroMotor, fechaAlta, cantKM
-	FROM [LOS_TABLATUBBIES].Automovil a
-	JOIN [LOS_TABLATUBBIES].Producto prod ON a.nroChasis = prod.codProducto
-	WHERE nroChasis IS NOT NULL	
-END;
-GO
-
-
-
---No sé qué ponerle adentro
-
-CREATE PROCEDURE [LOS_TABLATUBBIES].cargarTiempoBI
-AS
-BEGIN
-    INSERT INTO [LOS_TABLATUBBIES].BI_Tiempo(mes, anio)
-	SELECT MONTH(fecha), YEAR(fecha) 
-	FROM [LOS_TABLATUBBIES].Compra
-	WHERE fecha IS NOT NULL
-END;
-GO
-
 
 CREATE PROCEDURE [LOS_TABLATUBBIES].cargarStockBI
 AS
@@ -383,20 +369,25 @@ GO
 
 
 EXEC [LOS_TABLATUBBIES].cargarClienteBI
-EXEC [LOS_TABLATUBBIES].cargarSucursalBI
-EXEC [LOS_TABLATUBBIES].cargarModeloBI
-EXEC [LOS_TABLATUBBIES].cargarTipoAutomovilBI
-EXEC [LOS_TABLATUBBIES].cargarTipoTransmisionBI
+--EXEC [LOS_TABLATUBBIES].cargarSucursalBI
+EXEC [LOS_TABLATUBBIES].cargarTiempoBI
+
+EXEC [LOS_TABLATUBBIES].cargarFabricanteBI
+EXEC [LOS_TABLATUBBIES].cargarAutoparteBI
+
+
 EXEC [LOS_TABLATUBBIES].cargarTipoCajaCambiosBI
+EXEC [LOS_TABLATUBBIES].cargarTipoTransmisionBI
+EXEC [LOS_TABLATUBBIES].cargarTipoAutomovilBI
 EXEC [LOS_TABLATUBBIES].cargarTipoMotorBI
 EXEC [LOS_TABLATUBBIES].cargarPotenciaBI
-EXEC [LOS_TABLATUBBIES].cargarAutoparteBI
-EXEC [LOS_TABLATUBBIES].cargarFabricanteBI
+EXEC [LOS_TABLATUBBIES].cargarModeloBI
+EXEC [LOS_TABLATUBBIES].cargarAutomovilBI
+
 EXEC [LOS_TABLATUBBIES].cargarItemCompraBI 
 EXEC [LOS_TABLATUBBIES].cargarItemVentaBI
-EXEC [LOS_TABLATUBBIES].cargarAutomovilBI
 EXEC [LOS_TABLATUBBIES].cargarStockBI
-EXEC [LOS_TABLATUBBIES].cargarTiempoBI
+
 EXEC [LOS_TABLATUBBIES].cargarHechosCompra
 
 --Borrar desp estos selects
@@ -409,11 +400,11 @@ SELECT * FROM [LOS_TABLATUBBIES].BI_ItemVenta
 SELECT * FROM [LOS_TABLATUBBIES].BI_Autoparte
 SELECT * FROM [LOS_TABLATUBBIES].BI_Fabricante
 SELECT * FROM [LOS_TABLATUBBIES].Modelo
-SELECT * FROM [LOS_TABLATUBBIES].BI_TipoTransmision
+SELECT * FROM [LOS_TABLATUBBIES].BI_TipoMotor
 SELECT * FROM [LOS_TABLATUBBIES].Transmision
-SELECT * FROM [LOS_TABLATUBBIES].BI_TipoCajaCambios
-SELECT * FROM [LOS_TABLATUBBIES].Caja
-SELECT * FROM [LOS_TABLATUBBIES].Stock
+SELECT * FROM [LOS_TABLATUBBIES].BI_Modelo
+SELECT * FROM [LOS_TABLATUBBIES].Compra
+SELECT * FROM [LOS_TABLATUBBIES].Modelo
 SELECT * FROM [LOS_TABLATUBBIES].TipoAuto
 SELECT * FROM [LOS_TABLATUBBIES].BI_TipoAutomovil
 SELECT DISTINCT * FROM [LOS_TABLATUBBIES].BI_Potencia

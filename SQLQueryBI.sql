@@ -5,19 +5,19 @@
 CREATE TABLE [LOS_TABLATUBBIES].BI_Fabricante(
 	idFabricante INTEGER NOT NULL IDENTITY PRIMARY KEY,
 	fabricante NVARCHAR(255)
-)
+);
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_Autoparte(
 	codAutoparte DECIMAL(18,0) NOT NULL PRIMARY KEY,
 	idFabricante INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Fabricante(idFabricante),
 	descripcion NVARCHAR(255)
-)
+);
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_Tiempo(
 	idTiempo INTEGER NOT NULL IDENTITY PRIMARY KEY,
 	mes INTEGER,
 	anio INTEGER
-)
+);
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_Sucursal(
 	idSucursal INTEGER NOT NULL PRIMARY KEY,
@@ -25,39 +25,39 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_Sucursal(
 	mail NVARCHAR(255),
 	telefono INTEGER,
 	ciudad NVARCHAR(255)
-)
+);
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_CantidadCambios(
 	idCantCambios INTEGER NOT NULL PRIMARY KEY,
 	cantidad INTEGER
-)
+);
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_TipoCajaCambios(
 	codCaja DECIMAL(18,0) NOT NULL PRIMARY KEY,
 	idCantCambiso INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_CantidadCambios(idCantCambios),
 	descCaja NVARCHAR(255)
-)
+);
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_Potencia(
 	idPotencia INTEGER NOT NULL IDENTITY PRIMARY KEY,
 	potencia DECIMAL(18,0),
 	potenciaString NVARCHAR(15)
-)
+);
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_TipoMotor(
 	codTipoMotor INTEGER NOT NULL IDENTITY PRIMARY KEY,
 	tipoMotor VARCHAR(25)
-)
+);
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_TipoTransmision(
 	codTransmision DECIMAL(18,0) NOT NULL PRIMARY KEY,
 	descTransmision NVARCHAR(255)
-)
+);
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_TipoAutomovil(
 	codTipoAuto DECIMAL(18,0) NOT NULL PRIMARY KEY,
 	descripcion NVARCHAR(255)
-)
+);
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_Modelo(
 	codModelo DECIMAL(18,0) NOT NULL PRIMARY KEY,
@@ -67,7 +67,7 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_Modelo(
 	codTransmision DECIMAL(18,0) FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_TipoTransmision(codTransmision),
 	codTipoAuto DECIMAL(18,0) FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_TipoAutomovil(codTipoAuto),
 	nombre NVARCHAR(255)
-)
+);
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_Automovil(
 	nroChasis NVARCHAR(50) NOT NULL PRIMARY KEY,
@@ -76,7 +76,7 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_Automovil(
 	nroMotor NVARCHAR(50),
 	fechaAlta DATETIME2(3),
 	cantKM DECIMAL(18,0)
-)
+);
 
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_Cliente(
@@ -90,7 +90,7 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_Cliente(
 	--edad INTEGER,
 	edad NVARCHAR(15),
 	sexo CHAR(1)
-)
+);
 
 ---------------------------------------------------------------------------
 -------------------------------Tablas de Hechos----------------------------
@@ -104,7 +104,7 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_Hecho_Compra(
 	idSucursal INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Sucursal(idSucursal),
 	cantidad INTEGER,
 	precio DECIMAL(18,2)
-)
+);
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_Hecho_Venta(
 	idTiempo INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Tiempo(idTiempo),
@@ -114,7 +114,8 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_Hecho_Venta(
 	idSucursal INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Sucursal(idSucursal),
 	cantidad INTEGER,
 	precio DECIMAL(18,2)
-)
+);
+GO
 
 /*
 DROP TABLE [LOS_TABLATUBBIES].BI_Hecho_Venta
@@ -138,7 +139,6 @@ DROP TABLE [LOS_TABLATUBBIES].BI_TipoMotor
 DROP TABLE [LOS_TABLATUBBIES].BI_TipoTransmision
 DROP TABLE [LOS_TABLATUBBIES].BI_TipoAutomovil
 */
-GO
 
 ---------------------------------------------------------------------------
 -------------------------------Migracion-----------------------------------
@@ -356,6 +356,99 @@ BEGIN
 END;
 GO
 
+---------------------------------------------------------------------------
+-------------------------- Vistas Automóviles------------------------------
+---------------------------------------------------------------------------
+
+-- Cantidad de automoviles vendidos x sucursal y mes
+
+CREATE VIEW [LOS_TABLATUBBIES].AutosVendidos AS
+	SELECT TOP (200) hv.idSucursal [Sucursal], SUM(hv.cantidad) [Cantidad], t.mes [Mes], t.anio [Año]
+	FROM [LOS_TABLATUBBIES].BI_Hecho_Venta hv
+	JOIN [LOS_TABLATUBBIES].BI_Tiempo t ON hv.idTiempo = t.idTiempo
+	WHERE hv.idAutomovil IS NOT NULL
+	GROUP BY hv.idSucursal,  t.mes, t.anio
+	ORDER BY t.anio ASC;
+GO
+
+
+-- Cantidad de automoviles comprados x sucursal y mes
+	
+CREATE VIEW [LOS_TABLATUBBIES].AutosComprados AS
+	SELECT TOP (200) hc.idSucursal [Sucursal], SUM(hc.cantidad) [Cantidad], t.mes [Mes], t.anio [Año]
+	FROM [LOS_TABLATUBBIES].BI_Hecho_Compra hc
+	JOIN [LOS_TABLATUBBIES].BI_Tiempo t ON hc.idTiempo = t.idTiempo
+	WHERE hc.idAutomovil IS NOT NULL
+	GROUP BY hc.idSucursal,  t.mes, t.anio
+	ORDER BY t.anio ASC;
+GO
+
+
+-- Precio promedio de automoviles comprados y vendidos
+
+CREATE VIEW [LOS_TABLATUBBIES].PrecioPromAutos AS
+	SELECT AVG(hc.precio) [Precio promedio autos comprados], AVG(hv.precio) [Precio promedio autos vendidos]
+	FROM [LOS_TABLATUBBIES].BI_Hecho_Compra hc
+	JOIN [LOS_TABLATUBBIES].BI_Hecho_Venta hv ON hc.idAutomovil = hv.idAutomovil
+	WHERE hc.idAutomovil IS NOT NULL;
+GO
+
+
+-- Ganancias automoviles x sucursal y mes
+
+CREATE VIEW [LOS_TABLATUBBIES].GananciasAutos AS
+	SELECT TOP (200) hv.idSucursal [Sucursal], (SUM(hv.cantidad*hv.precio) - SUM(hc.cantidad*hc.precio)) [Ganancia], t.mes [Mes], t.anio [Año]
+	FROM [LOS_TABLATUBBIES].BI_Hecho_Venta hv
+	JOIN [LOS_TABLATUBBIES].BI_Tiempo t ON hv.idTiempo = t.idTiempo
+	JOIN [LOS_TABLATUBBIES].BI_Hecho_Compra hc ON hv.idAutomovil = hc.idAutomovil
+	WHERE hv.idAutomovil IS NOT NULL
+	GROUP BY hv.idSucursal,  t.mes, t.anio
+	ORDER BY t.anio ASC;
+GO
+
+
+-- Tiempo promedio en stock de modelo de automoviles
+
+CREATE VIEW [LOS_TABLATUBBIES].TiempoPromedioStkAutos AS
+	SELECT TOP (1100) a.codModelo, AVG(DATEDIFF(MONTH , CONCAT(CAST (tc.anio AS VARCHAR),'/', CAST(tc.mes AS VARCHAR), '/1') , CONCAT(CAST (tv.anio AS VARCHAR),'/', CAST(tv.mes AS VARCHAR), '/1') )) [Meses en stock] FROM [LOS_TABLATUBBIES].BI_Automovil a
+	JOIN [LOS_TABLATUBBIES].BI_Hecho_Compra hc ON a.nroChasis = hc.idAutomovil
+	JOIN [LOS_TABLATUBBIES].BI_Hecho_Venta hv ON a.nroChasis = hv.idAutomovil
+	JOIN [LOS_TABLATUBBIES].BI_Tiempo tc ON hc.idTiempo = tc.idTiempo
+	JOIN [LOS_TABLATUBBIES].BI_Tiempo tv ON hv.idTiempo = tv.idTiempo
+	GROUP BY a.codModelo
+	ORDER BY a.codModelo ASC;
+GO
+
+
+---------------------------------------------------------------------------
+-------------------------- Vistas Autopartes-------------------------------
+---------------------------------------------------------------------------
+
+-- Precio promedio de autopartes compradas y vendidas
+
+CREATE VIEW [LOS_TABLATUBBIES].PrecioPromAutopartes AS
+	SELECT AVG(hc.precio) [Precio promedio autopartes compradas], AVG(hv.precio) [Precio promedio autopartes vendidas]
+	FROM [LOS_TABLATUBBIES].BI_Hecho_Compra hc
+	JOIN [LOS_TABLATUBBIES].BI_Hecho_Venta hv ON hc.idAutoparte = hv.idAutoparte
+	WHERE hc.idAutoparte IS NOT NULL;
+GO
+
+
+-- Ganancias autopartes x sucursal y mes
+
+CREATE VIEW [LOS_TABLATUBBIES].GananciasAutopartes AS
+	SELECT TOP (200) hv.idSucursal [Sucursal], (SUM(hv.cantidad*hv.precio) - SUM(hc.cantidad*hc.precio)) [Ganancia], t.mes [Mes], t.anio [Año]
+	FROM [LOS_TABLATUBBIES].BI_Hecho_Venta hv
+	JOIN [LOS_TABLATUBBIES].BI_Tiempo t ON hv.idTiempo = t.idTiempo
+	JOIN [LOS_TABLATUBBIES].BI_Hecho_Compra hc ON hv.idAutoparte = hc.idAutoparte
+	WHERE hv.idAutoparte IS NOT NULL
+	GROUP BY hv.idSucursal,  t.mes, t.anio
+	ORDER BY t.anio ASC;
+GO-- Maxima cantidad de stock por cada sucursal (anual) CREATE VIEW [LOS_TABLATUBBIES].StockMaxAnualPorSucursal AS	SELECT hc.idAutoparte, (SUM(hc.cantidad) - SUM(hv.cantidad)) AS stock, hc.idSucursal, t.anio 	FROM [LOS_TABLATUBBIES].BI_Hecho_Compra hc	JOIN [LOS_TABLATUBBIES].BI_Tiempo t ON hc.idTiempo = t.idTiempo	JOIN [LOS_TABLATUBBIES].BI_Hecho_Venta hv ON hc.idAutoparte = hv.idAutoparte AND hc.idSucursal = hv.idSucursal 	WHERE hc.idAutoparte IS NOT NULL	GROUP BY hc.idAutoparte, hc.idSucursal, t.anio	HAVING (SUM(hc.cantidad) - SUM(hv.cantidad)) >= (SELECT TOP 1  SUM(hc2.cantidad) - SUM(hv2.cantidad) 	FROM [LOS_TABLATUBBIES].BI_Hecho_Compra hc2	JOIN [LOS_TABLATUBBIES].BI_Tiempo t2 ON hc2.idTiempo = t2.idTiempo	JOIN [LOS_TABLATUBBIES].BI_Hecho_Venta hv2 ON hc2.idAutoparte = hv2.idAutoparte AND hc2.idSucursal = hv2.idSucursal 	WHERE hc2.idAutoparte IS NOT NULL AND t2.anio = t.anio AND hc2.idSucursal = hc.idSucursal	GROUP BY  hc2.idAutoparte, hc2.idSucursal, t2.anio	ORDER BY 1 DESC);
+
+---------------------------------------------------------------------------
+------------------------ Dropeo de estructuras ----------------------------
+---------------------------------------------------------------------------
 EXEC [LOS_TABLATUBBIES].cargarClienteBI
 EXEC [LOS_TABLATUBBIES].cargarSucursalBI
 EXEC [LOS_TABLATUBBIES].cargarTiempoBI
@@ -373,101 +466,6 @@ EXEC [LOS_TABLATUBBIES].cargarAutomovilBI
 
 EXEC [LOS_TABLATUBBIES].cargarHechosCompra
 EXEC [LOS_TABLATUBBIES].cargarHechosVenta
-GO
-
----------------------------------------------------------------------------
--------------------------- Vistas Automóviles------------------------------
----------------------------------------------------------------------------
-
--- Cantidad de automoviles vendidos x sucursal y mes
-
-CREATE VIEW [LOS_TABLATUBBIES].AutosVendidos AS
-SELECT TOP (200) hv.idSucursal [Sucursal], SUM(hv.cantidad) [Cantidad], t.mes [Mes], t.anio [Año]
-FROM [LOS_TABLATUBBIES].BI_Hecho_Venta hv
-JOIN [LOS_TABLATUBBIES].BI_Tiempo t ON hv.idTiempo = t.idTiempo
-WHERE hv.idAutomovil IS NOT NULL
-GROUP BY hv.idSucursal,  t.mes, t.anio
-ORDER BY t.anio ASC
-GO
-
-
--- Cantidad de automoviles comprados x sucursal y mes
-	
-CREATE VIEW [LOS_TABLATUBBIES].AutosComprados AS
-SELECT TOP (200) hc.idSucursal [Sucursal], SUM(hc.cantidad) [Cantidad], t.mes [Mes], t.anio [Año]
-FROM [LOS_TABLATUBBIES].BI_Hecho_Compra hc
-JOIN [LOS_TABLATUBBIES].BI_Tiempo t ON hc.idTiempo = t.idTiempo
-WHERE hc.idAutomovil IS NOT NULL
-GROUP BY hc.idSucursal,  t.mes, t.anio
-ORDER BY t.anio ASC
-GO
-
-
--- Precio promedio de automoviles comprados y vendidos
-
-CREATE VIEW [LOS_TABLATUBBIES].PrecioPromAutos AS
-SELECT AVG(hc.precio) [Precio promedio autos comprados], AVG(hv.precio) [Precio promedio autos vendidos]
-FROM [LOS_TABLATUBBIES].BI_Hecho_Compra hc
-JOIN [LOS_TABLATUBBIES].BI_Hecho_Venta hv ON hc.idAutomovil = hv.idAutomovil
-WHERE hc.idAutomovil IS NOT NULL
-GO
-
-
--- Ganancias automoviles x sucursal y mes
-
-CREATE VIEW [LOS_TABLATUBBIES].GananciasAutos AS
-SELECT TOP (200) hv.idSucursal [Sucursal], (SUM(hv.cantidad*hv.precio) - SUM(hc.cantidad*hc.precio)) [Ganancia], t.mes [Mes], t.anio [Año]
-FROM [LOS_TABLATUBBIES].BI_Hecho_Venta hv
-JOIN [LOS_TABLATUBBIES].BI_Tiempo t ON hv.idTiempo = t.idTiempo
-JOIN [LOS_TABLATUBBIES].BI_Hecho_Compra hc ON hv.idAutomovil = hc.idAutomovil
-WHERE hv.idAutomovil IS NOT NULL
-GROUP BY hv.idSucursal,  t.mes, t.anio
-ORDER BY t.anio ASC
-GO
-
-
--- Tiempo promedio en stock de modelo de automoviles
-
-CREATE VIEW [LOS_TABLATUBBIES].TiempoPromedioStkAutos AS
-SELECT TOP (1100) a.codModelo, AVG(DATEDIFF(MONTH , CONCAT(CAST (tc.anio AS VARCHAR),'/', CAST(tc.mes AS VARCHAR), '/1') , CONCAT(CAST (tv.anio AS VARCHAR),'/', CAST(tv.mes AS VARCHAR), '/1') )) [Meses en stock] FROM [LOS_TABLATUBBIES].BI_Automovil a
-JOIN [LOS_TABLATUBBIES].BI_Hecho_Compra hc ON a.nroChasis = hc.idAutomovil
-JOIN [LOS_TABLATUBBIES].BI_Hecho_Venta hv ON a.nroChasis = hv.idAutomovil
-JOIN [LOS_TABLATUBBIES].BI_Tiempo tc ON hc.idTiempo = tc.idTiempo
-JOIN [LOS_TABLATUBBIES].BI_Tiempo tv ON hv.idTiempo = tv.idTiempo
-GROUP BY a.codModelo
-ORDER BY a.codModelo ASC
-GO
-
-
----------------------------------------------------------------------------
--------------------------- Vistas Autopartes-------------------------------
----------------------------------------------------------------------------
-
--- Precio promedio de autopartes compradas y vendidas
-
-CREATE VIEW [LOS_TABLATUBBIES].PrecioPromAutopartes AS
-SELECT AVG(hc.precio) [Precio promedio autopartes compradas], AVG(hv.precio) [Precio promedio autopartes vendidas]
-FROM [LOS_TABLATUBBIES].BI_Hecho_Compra hc
-JOIN [LOS_TABLATUBBIES].BI_Hecho_Venta hv ON hc.idAutoparte = hv.idAutoparte
-WHERE hc.idAutoparte IS NOT NULL
-GO
-
-
--- Ganancias autopartes x sucursal y mes
-
-CREATE VIEW [LOS_TABLATUBBIES].GananciasAutopartes AS
-SELECT TOP (200) hv.idSucursal [Sucursal], (SUM(hv.cantidad*hv.precio) - SUM(hc.cantidad*hc.precio)) [Ganancia], t.mes [Mes], t.anio [Año]
-FROM [LOS_TABLATUBBIES].BI_Hecho_Venta hv
-JOIN [LOS_TABLATUBBIES].BI_Tiempo t ON hv.idTiempo = t.idTiempo
-JOIN [LOS_TABLATUBBIES].BI_Hecho_Compra hc ON hv.idAutoparte = hc.idAutoparte
-WHERE hv.idAutoparte IS NOT NULL
-GROUP BY hv.idSucursal,  t.mes, t.anio
-ORDER BY t.anio ASC
-GO
-
----------------------------------------------------------------------------
------------------------- Dropeo de estructuras ----------------------------
----------------------------------------------------------------------------
 
 DROP PROCEDURE [LOS_TABLATUBBIES].cargarClienteBI
 DROP PROCEDURE [LOS_TABLATUBBIES].cargarSucursalBI
@@ -494,7 +492,14 @@ DROP VIEW [LOS_TABLATUBBIES].GananciasAutos
 DROP VIEW [LOS_TABLATUBBIES].TiempoPromedioStkAutos
 DROP VIEW [LOS_TABLATUBBIES].PrecioPromAutopartes
 DROP VIEW [LOS_TABLATUBBIES].GananciasAutopartes
+DROP VIEW [LOS_TABLATUBBIES].StockMaxAnualPorSucursal
 */
 
-
-
+/*SELECT * FROM [LOS_TABLATUBBIES].AutosVendidos
+SELECT * FROM [LOS_TABLATUBBIES].AutosComprados
+SELECT * FROM [LOS_TABLATUBBIES].PrecioPromAutos
+SELECT * FROM [LOS_TABLATUBBIES].GananciasAutos
+SELECT * FROM [LOS_TABLATUBBIES].TiempoPromedioStkAutos
+SELECT * FROM [LOS_TABLATUBBIES].PrecioPromAutopartes
+SELECT * FROM [LOS_TABLATUBBIES].GananciasAutopartes
+SELECT * FROM [LOS_TABLATUBBIES].StockMaxAnualPorSucursal*/

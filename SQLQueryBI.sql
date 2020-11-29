@@ -444,10 +444,26 @@ CREATE VIEW [LOS_TABLATUBBIES].GananciasAutopartes AS
 	WHERE hv.idAutoparte IS NOT NULL
 	GROUP BY hv.idSucursal,  t.mes, t.anio
 	ORDER BY t.anio ASC;
-GO-- Maxima cantidad de stock por cada sucursal (anual) CREATE VIEW [LOS_TABLATUBBIES].StockMaxAnualPorSucursal AS	SELECT hc.idAutoparte, (SUM(hc.cantidad) - SUM(hv.cantidad)) AS stock, hc.idSucursal, t.anio 	FROM [LOS_TABLATUBBIES].BI_Hecho_Compra hc	JOIN [LOS_TABLATUBBIES].BI_Tiempo t ON hc.idTiempo = t.idTiempo	JOIN [LOS_TABLATUBBIES].BI_Hecho_Venta hv ON hc.idAutoparte = hv.idAutoparte AND hc.idSucursal = hv.idSucursal 	WHERE hc.idAutoparte IS NOT NULL	GROUP BY hc.idAutoparte, hc.idSucursal, t.anio	HAVING (SUM(hc.cantidad) - SUM(hv.cantidad)) >= (SELECT TOP 1  SUM(hc2.cantidad) - SUM(hv2.cantidad) 	FROM [LOS_TABLATUBBIES].BI_Hecho_Compra hc2	JOIN [LOS_TABLATUBBIES].BI_Tiempo t2 ON hc2.idTiempo = t2.idTiempo	JOIN [LOS_TABLATUBBIES].BI_Hecho_Venta hv2 ON hc2.idAutoparte = hv2.idAutoparte AND hc2.idSucursal = hv2.idSucursal 	WHERE hc2.idAutoparte IS NOT NULL AND t2.anio = t.anio AND hc2.idSucursal = hc.idSucursal	GROUP BY  hc2.idAutoparte, hc2.idSucursal, t2.anio	ORDER BY 1 DESC);
+GO
+
+CREATE VIEW [LOS_TABLATUBBIES].StockMaxAnualPorSucursal AS
+	SELECT hc.idAutoparte, (SUM(hc.cantidad) - SUM(hv.cantidad)) AS stock, hc.idSucursal, t.anio 
+	FROM [LOS_TABLATUBBIES].BI_Hecho_Compra hc
+	JOIN [LOS_TABLATUBBIES].BI_Tiempo t ON hc.idTiempo = t.idTiempo
+	JOIN [LOS_TABLATUBBIES].BI_Hecho_Venta hv ON hc.idAutoparte = hv.idAutoparte AND hc.idSucursal = hv.idSucursal 
+	WHERE hc.idAutoparte IS NOT NULL
+	GROUP BY hc.idAutoparte, hc.idSucursal, t.anio
+	HAVING (SUM(hc.cantidad) - SUM(hv.cantidad)) >= (SELECT TOP 1  SUM(hc2.cantidad) - SUM(hv2.cantidad) 
+	FROM [LOS_TABLATUBBIES].BI_Hecho_Compra hc2
+	JOIN [LOS_TABLATUBBIES].BI_Tiempo t2 ON hc2.idTiempo = t2.idTiempo
+	JOIN [LOS_TABLATUBBIES].BI_Hecho_Venta hv2 ON hc2.idAutoparte = hv2.idAutoparte AND hc2.idSucursal = hv2.idSucursal 
+	WHERE hc2.idAutoparte IS NOT NULL AND t2.anio = t.anio AND hc2.idSucursal = hc.idSucursal
+	GROUP BY  hc2.idAutoparte, hc2.idSucursal, t2.anio
+	ORDER BY 1 DESC);
+GO
 
 ---------------------------------------------------------------------------
------------------------- Dropeo de estructuras ----------------------------
+---------------------- Dropeo de estructuras ------------------------------
 ---------------------------------------------------------------------------
 EXEC [LOS_TABLATUBBIES].cargarClienteBI
 EXEC [LOS_TABLATUBBIES].cargarSucursalBI

@@ -27,21 +27,6 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_Sucursal(
 	ciudad NVARCHAR(255)
 )
 
-/*CREATE TABLE [LOS_TABLATUBBIES].BI_Stock(
-	producto NVARCHAR(50),
-	cantidadStock INTEGER,
-	sucursal INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Sucursal(idSucursal),
-	CONSTRAINT stock_pk_compuesta_BI PRIMARY KEY (producto, sucursal)
-)*/
-
-CREATE TABLE [LOS_TABLATUBBIES].BI_ItemCompra(
-	idItemCompra INTEGER NOT NULL IDENTITY PRIMARY KEY,
-	producto  NVARCHAR(50),
-	--fecha DATETIME,
-	precioUnitario DECIMAL(12,2),
-	cantidadItemCompra INTEGER
-)
-
 CREATE TABLE [LOS_TABLATUBBIES].BI_CantidadCambios(
 	idCantCambios INTEGER NOT NULL PRIMARY KEY,
 	cantidad INTEGER
@@ -105,14 +90,6 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_Cliente(
 	sexo CHAR(1)
 )
 
-CREATE TABLE [LOS_TABLATUBBIES].BI_ItemVenta(
-	idItemVenta INTEGER NOT NULL IDENTITY PRIMARY KEY,
-	producto NVARCHAR(50),
-	precioUnitario DECIMAL(12,2),
-	cantidadItemVenta INTEGER
-)
-
-
 ---------------------------------------------------------------------------
 -------------------------------Tablas de Hechos----------------------------
 ---------------------------------------------------------------------------
@@ -122,11 +99,9 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_Hecho_Compra(
 	idCliente INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Cliente(idCliente),
 	idAutoparte DECIMAL(18,0) FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Autoparte(codAutoparte),
 	idAutomovil NVARCHAR(50) FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Automovil(nroChasis),
-	idItemCompra INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_ItemCompra(idItemCompra),
-	cantidadAutomoviles INTEGER,
-	cantidadAutopartes INTEGER,
-	precioPromAutomoviles DECIMAL(18,2),
-	precioPromAutopartes DECIMAL(18,2)
+	idSucursal INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Sucursal(idSucursal),
+	cantidad INTEGER,
+	precio DECIMAL(18,2)
 )
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_Hecho_Venta(
@@ -134,11 +109,9 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_Hecho_Venta(
 	idCliente INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Cliente(idCliente),
 	idAutoparte DECIMAL(18,0) FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Autoparte(codAutoparte),
 	idAutomovil NVARCHAR(50) FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Automovil(nroChasis),
-	idItemVenta INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_ItemVenta(idItemVenta),
-	cantidadAutomoviles INTEGER,
-	cantidadAutopartes INTEGER,
-	precioPromAutomoviles DECIMAL(18,2),
-	precioPromAutopartes DECIMAL(18,2)
+	idSucursal INTEGER FOREIGN KEY REFERENCES [LOS_TABLATUBBIES].BI_Sucursal(idSucursal),
+	cantidad INTEGER,
+	precio DECIMAL(18,2)
 )
 
 /*
@@ -149,9 +122,6 @@ DROP TABLE [LOS_TABLATUBBIES].BI_Autoparte
 DROP TABLE [LOS_TABLATUBBIES].BI_Fabricante
 
 DROP TABLE [LOS_TABLATUBBIES].BI_Tiempo
-
-DROP TABLE [LOS_TABLATUBBIES].BI_ItemVenta
-DROP TABLE [LOS_TABLATUBBIES].BI_ItemCompra
 
 DROP TABLE [LOS_TABLATUBBIES].BI_Sucursal
 
@@ -166,9 +136,6 @@ DROP TABLE [LOS_TABLATUBBIES].BI_TipoMotor
 DROP TABLE [LOS_TABLATUBBIES].BI_TipoTransmision
 DROP TABLE [LOS_TABLATUBBIES].BI_TipoAutomovil
 */
-
---DROP TABLE [LOS_TABLATUBBIES].BI_Stock
-
 GO
 
 ---------------------------------------------------------------------------
@@ -307,50 +274,45 @@ BEGIN
 END;
 GO
 
-CREATE PROCEDURE [LOS_TABLATUBBIES].cargarItemCompraBI 
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarHechosCompra
 AS
 BEGIN
-    INSERT INTO [LOS_TABLATUBBIES].BI_ItemCompra(producto, precioUnitario, cantidadItemCompra)
-	SELECT producto, precioUnitario, cantidadItemCompra   
-	FROM [LOS_TABLATUBBIES].Compra c 
-	JOIN [LOS_TABLATUBBIES].ItemCompra ic ON c.nroCompra = ic.nroCompra
-	JOIN [LOS_TABLATUBBIES].Producto p ON ic.producto = p.codProducto
+
+    INSERT INTO [LOS_TABLATUBBIES].BI_Hecho_Compra(idAutoparte, idTiempo, idSucursal, idCliente, cantidad, precio)
+	SELECT codAutoparte, idTiempo, c.sucursal, c.cliente, ic.cantidadItemCompra, ic.precioUnitario FROM [LOS_TABLATUBBIES].ItemCompra ic
+	JOIN [LOS_TABLATUBBIES].BI_Autoparte ap ON ic.producto = CAST(ap.codAutoparte AS NVARCHAR(50))
+	JOIN [LOS_TABLATUBBIES].Compra c ON ic.nroCompra = c.nroCompra
+	JOIN [LOS_TABLATUBBIES].BI_Tiempo t ON MONTH(c.fecha) = t.mes AND  YEAR(c.fecha) = t.anio
+
+
+	INSERT INTO [LOS_TABLATUBBIES].BI_Hecho_Compra(idAutomovil, idTiempo, idSucursal, idCliente, cantidad, precio)
+	SELECT nroChasis, idTiempo, c.sucursal, c.cliente, ic.cantidadItemCompra, ic.precioUnitario FROM [LOS_TABLATUBBIES].ItemCompra ic
+	JOIN [LOS_TABLATUBBIES].BI_Automovil a ON ic.producto = a.nroChasis
+	JOIN [LOS_TABLATUBBIES].Compra c ON ic.nroCompra = c.nroCompra
+	JOIN [LOS_TABLATUBBIES].BI_Tiempo t ON MONTH(c.fecha) = t.mes AND  YEAR(c.fecha) = t.anio
+
 END;
 GO
 
-CREATE PROCEDURE [LOS_TABLATUBBIES].cargarItemVentaBI
+CREATE PROCEDURE [LOS_TABLATUBBIES].cargarHechosVenta
 AS
 BEGIN
-    INSERT INTO [LOS_TABLATUBBIES].BI_ItemVenta(producto, precioUnitario, cantidadItemVenta)
-	SELECT producto, precioUnitario, cantidadItemFactura  
-	FROM [LOS_TABLATUBBIES].FacturaVta fv 
-	JOIN [LOS_TABLATUBBIES].ItemFactura ifac ON fv.nroFactura = ifac.nroFactura
-	JOIN [LOS_TABLATUBBIES].Producto p ON ifac.producto = p.codProducto
+
+    INSERT INTO [LOS_TABLATUBBIES].BI_Hecho_Venta(idAutoparte, idTiempo, idSucursal, idCliente, cantidad, precio)
+	SELECT codAutoparte, idTiempo, fv.sucursal, fv.cliente, i.cantidadItemFactura, i.precioUnitario FROM [LOS_TABLATUBBIES].ItemFactura i
+	JOIN [LOS_TABLATUBBIES].BI_Autoparte ap ON i.producto = CAST(ap.codAutoparte AS NVARCHAR(50))
+	JOIN [LOS_TABLATUBBIES].FacturaVta fv ON i.nroFactura = fv.nroFactura
+	JOIN [LOS_TABLATUBBIES].BI_Tiempo t ON MONTH(fv.fecha) = t.mes AND  YEAR(fv.fecha) = t.anio
+
+
+	INSERT INTO [LOS_TABLATUBBIES].BI_Hecho_Venta(idAutomovil, idTiempo, idSucursal, idCliente, cantidad, precio)
+	SELECT nroChasis, idTiempo, fv.sucursal, fv.cliente, i.cantidadItemFactura, i.precioUnitario FROM [LOS_TABLATUBBIES].ItemFactura i
+	JOIN [LOS_TABLATUBBIES].BI_Automovil a ON i.producto = a.nroChasis
+	JOIN [LOS_TABLATUBBIES].FacturaVta fv ON i.nroFactura = fv.nroFactura
+	JOIN [LOS_TABLATUBBIES].BI_Tiempo t ON MONTH(fv.fecha) = t.mes AND  YEAR(fv.fecha) = t.anio
+
 END;
 GO
-
---------------------------------------------------------------------------------------------------------------------
---------------------------------------------------------------------------------------------------------------------
-
-/*CREATE PROCEDURE [LOS_TABLATUBBIES].cargarHechosCompra
-AS
-BEGIN
-    INSERT INTO [LOS_TABLATUBBIES].BI_Hecho_Compra(idFabricante, idAutoparte, idItemCompra, idStock)
-	SELECT idFabricante, codAutoparte, idItemCompra, idStock FROM [LOS_TABLATUBBIES].BI_Autoparte a
-	JOIN [LOS_TABLATUBBIES].BI_Fabricante f ON a.codAutoparte = f.idFabricante
-	JOIN [LOS_TABLATUBBIES].BI_ItemCompra ic ON CAST(a.codAutoparte AS NVARCHAR(50)) = ic.producto
-	JOIN [LOS_TABLATUBBIES].BI_Stock s ON CAST(a.codAutoparte AS NVARCHAR(50)) = s.producto
-
-	INSERT INTO [LOS_TABLATUBBIES].BI_Hecho_Compra(idAutomovil, idFabricante, idItemCompra, idStock)
-	SELECT nroChasis, codModelo, codCaja, codTipoAutomovil, codPotencia, codTransmision, codMotor, idItemCompra,idStock FROM [LOS_TABLATUBBIES].BI_Automovil am
-	JOIN [LOS_TABLATUBBIES].BI_ItemCompra ic ON am.nroChasis = ic.producto
-	JOIN [LOS_TABLATUBBIES].BI_Modelo m ON ic.MODELO = m.codModelo
-	JOIN [LOS_TABLATUBBIES].BI_Potencia pot ON m.POTENCIA = pot.idPotencia
-	JOIN [LOS_TABLATUBBIES].BI_TipoAutomovil tam ON 
-
-END;
-GO*/
-
 
 EXEC [LOS_TABLATUBBIES].cargarClienteBI
 EXEC [LOS_TABLATUBBIES].cargarSucursalBI
@@ -367,10 +329,8 @@ EXEC [LOS_TABLATUBBIES].cargarPotenciaBI
 EXEC [LOS_TABLATUBBIES].cargarModeloBI
 EXEC [LOS_TABLATUBBIES].cargarAutomovilBI
 
-EXEC [LOS_TABLATUBBIES].cargarItemCompraBI 
-EXEC [LOS_TABLATUBBIES].cargarItemVentaBI
-
---EXEC [LOS_TABLATUBBIES].cargarHechosCompra
+EXEC [LOS_TABLATUBBIES].cargarHechosCompra
+EXEC [LOS_TABLATUBBIES].cargarHechosVenta
 
 
 DROP PROCEDURE [LOS_TABLATUBBIES].cargarClienteBI
@@ -383,12 +343,7 @@ DROP PROCEDURE [LOS_TABLATUBBIES].cargarTipoMotorBI
 DROP PROCEDURE [LOS_TABLATUBBIES].cargarPotenciaBI
 DROP PROCEDURE [LOS_TABLATUBBIES].cargarAutoparteBI
 DROP PROCEDURE [LOS_TABLATUBBIES].cargarFabricanteBI
-DROP PROCEDURE [LOS_TABLATUBBIES].cargarItemCompraBI 
-DROP PROCEDURE [LOS_TABLATUBBIES].cargarItemVentaBI
 DROP PROCEDURE [LOS_TABLATUBBIES].cargarAutomovilBI
 DROP PROCEDURE [LOS_TABLATUBBIES].cargarTiempoBI
---DROP PROCEDURE [LOS_TABLATUBBIES].cargarHechosCompra
-
-SELECT * FROM [LOS_TABLATUBBIES].BI_ItemCompra
-SELECT * FROM [LOS_TABLATUBBIES].BI_ItemVenta
-SELECT * FROM [LOS_TABLATUBBIES].BI_Sucursal
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarHechosCompra
+DROP PROCEDURE [LOS_TABLATUBBIES].cargarHechosVenta

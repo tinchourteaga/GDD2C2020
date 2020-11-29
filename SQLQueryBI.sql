@@ -373,7 +373,101 @@ EXEC [LOS_TABLATUBBIES].cargarAutomovilBI
 
 EXEC [LOS_TABLATUBBIES].cargarHechosCompra
 EXEC [LOS_TABLATUBBIES].cargarHechosVenta
+GO
 
+---------------------------------------------------------------------------
+-------------------------- Vistas Automóviles------------------------------
+---------------------------------------------------------------------------
+
+-- Cantidad de automoviles vendidos x sucursal y mes
+
+CREATE VIEW [LOS_TABLATUBBIES].AutosVendidos AS
+SELECT TOP (200) hv.idSucursal [Sucursal], SUM(hv.cantidad) [Cantidad], t.mes [Mes], t.anio [Año]
+FROM [LOS_TABLATUBBIES].BI_Hecho_Venta hv
+JOIN [LOS_TABLATUBBIES].BI_Tiempo t ON hv.idTiempo = t.idTiempo
+WHERE hv.idAutomovil IS NOT NULL
+GROUP BY hv.idSucursal,  t.mes, t.anio
+ORDER BY t.anio ASC
+GO
+
+
+-- Cantidad de automoviles comprados x sucursal y mes
+	
+CREATE VIEW [LOS_TABLATUBBIES].AutosComprados AS
+SELECT TOP (200) hc.idSucursal [Sucursal], SUM(hc.cantidad) [Cantidad], t.mes [Mes], t.anio [Año]
+FROM [LOS_TABLATUBBIES].BI_Hecho_Compra hc
+JOIN [LOS_TABLATUBBIES].BI_Tiempo t ON hc.idTiempo = t.idTiempo
+WHERE hc.idAutomovil IS NOT NULL
+GROUP BY hc.idSucursal,  t.mes, t.anio
+ORDER BY t.anio ASC
+GO
+
+
+-- Precio promedio de automoviles comprados y vendidos
+
+CREATE VIEW [LOS_TABLATUBBIES].PrecioPromAutos AS
+SELECT AVG(hc.precio) [Precio promedio autos comprados], AVG(hv.precio) [Precio promedio autos vendidos]
+FROM [LOS_TABLATUBBIES].BI_Hecho_Compra hc
+JOIN [LOS_TABLATUBBIES].BI_Hecho_Venta hv ON hc.idAutomovil = hv.idAutomovil
+WHERE hc.idAutomovil IS NOT NULL
+GO
+
+
+-- Ganancias automoviles x sucursal y mes
+
+CREATE VIEW [LOS_TABLATUBBIES].GananciasAutos AS
+SELECT TOP (200) hv.idSucursal [Sucursal], (SUM(hv.cantidad*hv.precio) - SUM(hc.cantidad*hc.precio)) [Ganancia], t.mes [Mes], t.anio [Año]
+FROM [LOS_TABLATUBBIES].BI_Hecho_Venta hv
+JOIN [LOS_TABLATUBBIES].BI_Tiempo t ON hv.idTiempo = t.idTiempo
+JOIN [LOS_TABLATUBBIES].BI_Hecho_Compra hc ON hv.idAutomovil = hc.idAutomovil
+WHERE hv.idAutomovil IS NOT NULL
+GROUP BY hv.idSucursal,  t.mes, t.anio
+ORDER BY t.anio ASC
+GO
+
+
+-- Tiempo promedio en stock de modelo de automoviles
+
+CREATE VIEW [LOS_TABLATUBBIES].TiempoPromedioStkAutos AS
+SELECT TOP (1100) a.codModelo, AVG(DATEDIFF(MONTH , CONCAT(CAST (tc.anio AS VARCHAR),'/', CAST(tc.mes AS VARCHAR), '/1') , CONCAT(CAST (tv.anio AS VARCHAR),'/', CAST(tv.mes AS VARCHAR), '/1') )) [Meses en stock] FROM [LOS_TABLATUBBIES].BI_Automovil a
+JOIN [LOS_TABLATUBBIES].BI_Hecho_Compra hc ON a.nroChasis = hc.idAutomovil
+JOIN [LOS_TABLATUBBIES].BI_Hecho_Venta hv ON a.nroChasis = hv.idAutomovil
+JOIN [LOS_TABLATUBBIES].BI_Tiempo tc ON hc.idTiempo = tc.idTiempo
+JOIN [LOS_TABLATUBBIES].BI_Tiempo tv ON hv.idTiempo = tv.idTiempo
+GROUP BY a.codModelo
+ORDER BY a.codModelo ASC
+GO
+
+
+---------------------------------------------------------------------------
+-------------------------- Vistas Autopartes-------------------------------
+---------------------------------------------------------------------------
+
+-- Precio promedio de autopartes compradas y vendidas
+
+CREATE VIEW [LOS_TABLATUBBIES].PrecioPromAutopartes AS
+SELECT AVG(hc.precio) [Precio promedio autopartes compradas], AVG(hv.precio) [Precio promedio autopartes vendidas]
+FROM [LOS_TABLATUBBIES].BI_Hecho_Compra hc
+JOIN [LOS_TABLATUBBIES].BI_Hecho_Venta hv ON hc.idAutoparte = hv.idAutoparte
+WHERE hc.idAutoparte IS NOT NULL
+GO
+
+
+-- Ganancias autopartes x sucursal y mes
+
+CREATE VIEW [LOS_TABLATUBBIES].GananciasAutopartes AS
+SELECT TOP (200) hv.idSucursal [Sucursal], (SUM(hv.cantidad*hv.precio) - SUM(hc.cantidad*hc.precio)) [Ganancia], t.mes [Mes], t.anio [Año]
+FROM [LOS_TABLATUBBIES].BI_Hecho_Venta hv
+JOIN [LOS_TABLATUBBIES].BI_Tiempo t ON hv.idTiempo = t.idTiempo
+JOIN [LOS_TABLATUBBIES].BI_Hecho_Compra hc ON hv.idAutoparte = hc.idAutoparte
+WHERE hv.idAutoparte IS NOT NULL
+GROUP BY hv.idSucursal,  t.mes, t.anio
+ORDER BY t.anio ASC
+GO
+
+---------------------------------------------------------------------------
+------------------------ Dropeo de estructuras ----------------------------
+---------------------------------------------------------------------------
 
 DROP PROCEDURE [LOS_TABLATUBBIES].cargarClienteBI
 DROP PROCEDURE [LOS_TABLATUBBIES].cargarSucursalBI
@@ -391,3 +485,16 @@ DROP PROCEDURE [LOS_TABLATUBBIES].cargarHechosCompra
 DROP PROCEDURE [LOS_TABLATUBBIES].cargarHechosVenta
 DROP FUNCTION [LOS_TABLATUBBIES].retornarFecha
 DROP FUNCTION [LOS_TABLATUBBIES].retornarPotencia
+
+/*
+DROP VIEW [LOS_TABLATUBBIES].AutosVendidos
+DROP VIEW [LOS_TABLATUBBIES].AutosComprados
+DROP VIEW [LOS_TABLATUBBIES].PrecioPromAutos
+DROP VIEW [LOS_TABLATUBBIES].GananciasAutos
+DROP VIEW [LOS_TABLATUBBIES].TiempoPromedioStkAutos
+DROP VIEW [LOS_TABLATUBBIES].PrecioPromAutopartes
+DROP VIEW [LOS_TABLATUBBIES].GananciasAutopartes
+*/
+
+
+

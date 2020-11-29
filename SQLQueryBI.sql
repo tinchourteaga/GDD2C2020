@@ -40,7 +40,8 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_TipoCajaCambios(
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_Potencia(
 	idPotencia INTEGER NOT NULL IDENTITY PRIMARY KEY,
-	potencia DECIMAL(18,0)
+	potencia DECIMAL(18,0),
+	potenciaString NVARCHAR(15)
 )
 
 CREATE TABLE [LOS_TABLATUBBIES].BI_TipoMotor(
@@ -86,7 +87,8 @@ CREATE TABLE [LOS_TABLATUBBIES].BI_Cliente(
 	dni DECIMAL(18,0),
 	mail NVARCHAR(255),
 	fechaNac DATETIME2(3),
-	edad INTEGER,
+	--edad INTEGER,
+	edad NVARCHAR(15),
 	sexo CHAR(1)
 )
 
@@ -145,10 +147,30 @@ GO
 CREATE PROCEDURE [LOS_TABLATUBBIES].cargarClienteBI
 AS
 BEGIN
-    INSERT INTO [LOS_TABLATUBBIES].BI_Cliente(nombre, apellido, direccion, dni, mail, fechaNac)
-	SELECT DISTINCT nombre, apellido, direccion, dni, mail, fechaNac
+    INSERT INTO [LOS_TABLATUBBIES].BI_Cliente(nombre, apellido, direccion, dni, mail, fechaNac, edad)
+	SELECT DISTINCT nombre, apellido, direccion, dni, mail, fechaNac, [LOS_TABLATUBBIES].[retornarFecha](YEAR(fechaNac))
 	FROM [LOS_TABLATUBBIES].Cliente
 	WHERE dni IS NOT NULL
+END;
+GO
+
+CREATE FUNCTION [LOS_TABLATUBBIES].retornarFecha(@anioNac INTEGER)
+RETURNS NVARCHAR(15)
+BEGIN
+	DECLARE @retorno NVARCHAR(15)
+	
+    IF(YEAR(GETDATE())-@anioNac < 31)
+	BEGIN
+		SET @retorno = '18-30 años'
+	END;
+	ELSE IF(YEAR(GETDATE())-@anioNac < 51)
+	BEGIN
+		SET @retorno = '31-50 años'
+	END;
+	ELSE
+		SET @retorno = '> 50 años'
+
+	RETURN @retorno
 END;
 GO
 
@@ -244,10 +266,30 @@ GO
 CREATE PROCEDURE [LOS_TABLATUBBIES].cargarPotenciaBI
 AS
 BEGIN
-    INSERT INTO [LOS_TABLATUBBIES].BI_Potencia(potencia)
-	SELECT DISTINCT potencia
+    INSERT INTO [LOS_TABLATUBBIES].BI_Potencia(potencia, potenciaString)
+	SELECT DISTINCT potencia, [LOS_TABLATUBBIES].[retornarPotencia](potencia)
 	FROM [LOS_TABLATUBBIES].Modelo
 	WHERE codModelo IS NOT NULL
+END;
+GO
+
+CREATE FUNCTION [LOS_TABLATUBBIES].retornarPotencia(@potencia DECIMAL(18,0))
+RETURNS NVARCHAR(15)
+BEGIN
+	DECLARE @retorno NVARCHAR(15)
+	
+    IF(@potencia < 151)
+	BEGIN
+		SET @retorno = '50-150cv'
+	END;
+	ELSE IF(@potencia < 301)
+	BEGIN
+		SET @retorno = '151-300cv'
+	END;
+	ELSE
+		SET @retorno = '>300cv'
+
+	RETURN @retorno
 END;
 GO
 
@@ -347,3 +389,5 @@ DROP PROCEDURE [LOS_TABLATUBBIES].cargarAutomovilBI
 DROP PROCEDURE [LOS_TABLATUBBIES].cargarTiempoBI
 DROP PROCEDURE [LOS_TABLATUBBIES].cargarHechosCompra
 DROP PROCEDURE [LOS_TABLATUBBIES].cargarHechosVenta
+DROP FUNCTION [LOS_TABLATUBBIES].retornarFecha
+DROP FUNCTION [LOS_TABLATUBBIES].retornarPotencia
